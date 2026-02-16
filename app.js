@@ -21,11 +21,55 @@ const state = {
   lastFocusedEditable: null,
 };
 const LOCAL_STORAGE_KEY = "adagioTranslate.currentProject.v1";
+const ONBOARDING_STATUS_STORAGE_KEY = "adagioTranslate.onboardingStatus.v1";
 const GOOGLE_API_KEY_STORAGE_KEY = "adagioTranslate.googleApiKey.v1";
 const MYMEMORY_EMAIL_STORAGE_KEY = "adagioTranslate.myMemoryEmail.v1";
 const MT_PROVIDER_STORAGE_KEY = "adagioTranslate.mtProvider.v1";
 const GOOGLE_TRANSLATE_ENDPOINT = "https://translation.googleapis.com/language/translate/v2";
 const MYMEMORY_TRANSLATE_ENDPOINT = "https://api.mymemory.translated.net/get";
+const ONBOARDING_STEPS = [
+  {
+    id: "file_menu",
+    title: "File Actions",
+    body: "Use File to import documents, open/save projects, and export finished translations.",
+    targets: ["#menu-file > summary", "#menu-file"],
+  },
+  {
+    id: "segments",
+    title: "Segments",
+    body: "Your document is split into segments here. Click any segment to work on it.",
+    targets: [".segments-panel", "#segment-list"],
+  },
+  {
+    id: "translation",
+    title: "Inline Translation",
+    body: "After selecting a segment, the target text area appears inline so you can translate directly.",
+    targets: [".segment-translation-input", "#segment-list"],
+    onBeforeShow: () => {
+      if (!state.activeSegmentId && state.project.segments.length) {
+        selectSegment(state.project.segments[0].id);
+      }
+    },
+  },
+  {
+    id: "auto_translate",
+    title: "Auto-Translate",
+    body: "If machine translation is configured, this button appears next to the selected segment.",
+    targets: [".segment-auto-translate-btn", "#local-settings-btn"],
+  },
+  {
+    id: "glossary",
+    title: "Glossary",
+    body: "Add term translations here to keep wording consistent across the project.",
+    targets: ["#add-glossary-btn", ".glossary-panel"],
+  },
+  {
+    id: "local_settings",
+    title: "Local Settings",
+    body: "Choose translation provider and optional credentials here. These settings stay local and are not saved in project JSON exports.",
+    targets: ["#local-settings-btn"],
+  },
+];
 const LANGUAGE_LABELS = {
   ar: "Arabic",
   bn: "Bengali",
@@ -102,6 +146,15 @@ const els = {
 };
 
 let pendingGlossarySelection = "";
+const onboarding = {
+  active: false,
+  stepIndex: 0,
+  overlayEl: null,
+  popoverEl: null,
+  targetEl: null,
+  demoLoaded: false,
+  snapshot: null,
+};
 
 init();
 
@@ -115,6 +168,7 @@ function init() {
   loadProjectFromStorage();
   loadMachineTranslationSettingsFromStorage();
   renderAll();
+  initOnboarding();
 }
 
 function bindMenuBehavior() {
@@ -127,6 +181,343 @@ function bindMenuBehavior() {
       menu.removeAttribute("open");
     });
   });
+}
+
+function initOnboarding() {
+  if (!shouldRunOnboarding()) {
+    return;
+  }
+  startOnboarding();
+  window.addEventListener("resize", refreshOnboardingPosition);
+  window.addEventListener("scroll", refreshOnboardingPosition, true);
+}
+
+function shouldRunOnboarding() {
+  const status = getOnboardingStatus();
+  return status !== "completed" && status !== "skipped";
+}
+
+function getOnboardingStatus() {
+  try {
+    return (localStorage.getItem(ONBOARDING_STATUS_STORAGE_KEY) || "").trim().toLowerCase();
+  } catch (error) {
+    console.error(error);
+    return "";
+  }
+}
+
+function setOnboardingStatus(status) {
+  try {
+    localStorage.setItem(ONBOARDING_STATUS_STORAGE_KEY, status);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function startOnboarding() {
+  if (onboarding.active) {
+    return;
+  }
+
+  onboarding.active = true;
+  onboarding.stepIndex = 0;
+  setupOnboardingDemoProject();
+  createOnboardingUi();
+  showOnboardingStep(0);
+}
+
+function createOnboardingUi() {
+  const overlay = document.createElement("div");
+  overlay.className = "onboarding-overlay";
+
+  const popover = document.createElement("div");
+  popover.className = "onboarding-popover";
+  popover.innerHTML = `
+    <div class="onboarding-header">Quick Tour</div>
+    <div class="onboarding-step"></div>
+    <h4 class="onboarding-title"></h4>
+    <p class="onboarding-body"></p>
+    <div class="onboarding-actions">
+      <button type="button" data-onboarding-action="back">Back</button>
+      <button type="button" data-onboarding-action="next">Next</button>
+      <button type="button" data-onboarding-action="skip">Skip</button>
+    </div>
+  `;
+
+  popover.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-onboarding-action]");
+    if (!btn) {
+      return;
+    }
+
+    const action = btn.getAttribute("data-onboarding-action");
+    if (action === "back") {
+      showOnboardingStep(onboarding.stepIndex - 1);
+      return;
+    }
+    if (action === "next") {
+      if (onboarding.stepIndex >= ONBOARDING_STEPS.length - 1) {
+        closeOnboarding("completed");
+      } else {
+        showOnboardingStep(onboarding.stepIndex + 1);
+      }
+      return;
+    }
+    if (action === "skip") {
+      closeOnboarding("skipped");
+    }
+  });
+
+  document.body.append(overlay, popover);
+  onboarding.overlayEl = overlay;
+  onboarding.popoverEl = popover;
+}
+
+function showOnboardingStep(nextIndex) {
+  if (!onboarding.active) {
+    return;
+  }
+
+  const clamped = Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, nextIndex));
+  onboarding.stepIndex = clamped;
+  const step = ONBOARDING_STEPS[clamped];
+  if (!step) {
+    closeOnboarding("completed");
+    return;
+  }
+
+  if (typeof step.onBeforeShow === "function") {
+    step.onBeforeShow();
+  }
+
+  updateOnboardingContent(step, clamped);
+  focusOnboardingTarget(step);
+  positionOnboardingPopover();
+}
+
+function updateOnboardingContent(step, stepIndex) {
+  const popover = onboarding.popoverEl;
+  if (!popover) {
+    return;
+  }
+
+  const stepCounter = popover.querySelector(".onboarding-step");
+  const title = popover.querySelector(".onboarding-title");
+  const body = popover.querySelector(".onboarding-body");
+  const backBtn = popover.querySelector('[data-onboarding-action="back"]');
+  const nextBtn = popover.querySelector('[data-onboarding-action="next"]');
+
+  if (stepCounter) {
+    stepCounter.textContent = `Step ${stepIndex + 1} of ${ONBOARDING_STEPS.length}`;
+  }
+  if (title) {
+    title.textContent = step.title;
+  }
+  if (body) {
+    body.textContent = step.body;
+  }
+  if (backBtn) {
+    backBtn.disabled = stepIndex === 0;
+  }
+  if (nextBtn) {
+    nextBtn.textContent = stepIndex === ONBOARDING_STEPS.length - 1 ? "Finish" : "Next";
+  }
+}
+
+function focusOnboardingTarget(step) {
+  clearOnboardingHighlight();
+  const target = resolveOnboardingTarget(step.targets);
+  onboarding.targetEl = target;
+  if (target) {
+    target.classList.add("onboarding-highlight");
+  }
+}
+
+function resolveOnboardingTarget(targets) {
+  const selectors = Array.isArray(targets) ? targets : [targets];
+  for (const selector of selectors) {
+    const node = document.querySelector(selector);
+    if (node) {
+      return node;
+    }
+  }
+  return null;
+}
+
+function refreshOnboardingPosition() {
+  if (!onboarding.active) {
+    return;
+  }
+  const step = ONBOARDING_STEPS[onboarding.stepIndex];
+  if (!step) {
+    return;
+  }
+  onboarding.targetEl = resolveOnboardingTarget(step.targets);
+  if (onboarding.targetEl) {
+    onboarding.targetEl.classList.add("onboarding-highlight");
+  }
+  positionOnboardingPopover();
+}
+
+function positionOnboardingPopover() {
+  const popover = onboarding.popoverEl;
+  if (!popover) {
+    return;
+  }
+
+  const margin = 12;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const popoverRect = popover.getBoundingClientRect();
+  const target = onboarding.targetEl;
+
+  let top = margin;
+  let left = margin;
+
+  if (!target) {
+    top = Math.max(margin, (viewportHeight - popoverRect.height) / 2);
+    left = Math.max(margin, (viewportWidth - popoverRect.width) / 2);
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const roomRight = viewportWidth - rect.right;
+  const roomLeft = rect.left;
+  const placeRight = roomRight >= popoverRect.width + margin;
+  const placeLeft = roomLeft >= popoverRect.width + margin;
+
+  if (placeRight) {
+    left = rect.right + margin;
+    top = rect.top;
+  } else if (placeLeft) {
+    left = rect.left - popoverRect.width - margin;
+    top = rect.top;
+  } else {
+    left = Math.max(margin, Math.min(rect.left, viewportWidth - popoverRect.width - margin));
+    top = rect.bottom + margin;
+  }
+
+  top = Math.max(margin, Math.min(top, viewportHeight - popoverRect.height - margin));
+  left = Math.max(margin, Math.min(left, viewportWidth - popoverRect.width - margin));
+
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+}
+
+function clearOnboardingHighlight() {
+  if (onboarding.targetEl) {
+    onboarding.targetEl.classList.remove("onboarding-highlight");
+  }
+  onboarding.targetEl = null;
+}
+
+function closeOnboarding(status) {
+  clearOnboardingHighlight();
+  if (onboarding.overlayEl) {
+    onboarding.overlayEl.remove();
+  }
+  if (onboarding.popoverEl) {
+    onboarding.popoverEl.remove();
+  }
+  onboarding.overlayEl = null;
+  onboarding.popoverEl = null;
+  onboarding.active = false;
+  teardownOnboardingDemoProject();
+  setOnboardingStatus(status);
+}
+
+function setupOnboardingDemoProject() {
+  onboarding.snapshot = {
+    project: cloneProject(state.project),
+    activeSegmentId: state.activeSegmentId,
+  };
+
+  const now = new Date().toISOString();
+  state.project = {
+    meta: {
+      name: "Onboarding Demo Project",
+      sourceLanguage: "en",
+      targetLanguage: "es",
+      splitMode: "sentence",
+      editorPosition: "bottom",
+      createdAt: now,
+      updatedAt: now,
+    },
+    sourceText: [
+      "Adagio Translate helps freelancers deliver consistent translations.",
+      "Click a segment to edit your target text.",
+      "Use Local Settings to choose machine translation options.",
+      "Glossary terms keep repeated words aligned across the project.",
+    ].join(" "),
+    segments: [
+      {
+        id: "seg-1",
+        index: 0,
+        source: "Adagio Translate helps freelancers deliver consistent translations.",
+        translation: "Adagio Translate ayuda a profesionales independientes a entregar traducciones consistentes.",
+      },
+      {
+        id: "seg-2",
+        index: 1,
+        source: "Click a segment to edit your target text.",
+        translation: "",
+      },
+      {
+        id: "seg-3",
+        index: 2,
+        source: "Use Local Settings to choose machine translation options.",
+        translation: "Usa Configuración local para elegir opciones de traducción automática.",
+      },
+      {
+        id: "seg-4",
+        index: 3,
+        source: "Glossary terms keep repeated words aligned across the project.",
+        translation: "",
+      },
+    ],
+    glossary: [
+      {
+        targetTerm: "segment",
+        translation: "segmento",
+        addedAt: now,
+      },
+      {
+        targetTerm: "settings",
+        translation: "configuración",
+        addedAt: now,
+      },
+      {
+        targetTerm: "glossary",
+        translation: "glosario",
+        addedAt: now,
+      },
+    ],
+  };
+  state.activeSegmentId = "seg-2";
+  onboarding.demoLoaded = true;
+  renderAll();
+}
+
+function teardownOnboardingDemoProject() {
+  if (!onboarding.demoLoaded) {
+    onboarding.snapshot = null;
+    return;
+  }
+
+  if (onboarding.snapshot?.project) {
+    state.project = cloneProject(onboarding.snapshot.project);
+    state.activeSegmentId = onboarding.snapshot.activeSegmentId || state.project.segments[0]?.id || null;
+  }
+
+  onboarding.demoLoaded = false;
+  onboarding.snapshot = null;
+  renderAll();
+}
+
+function cloneProject(project) {
+  return JSON.parse(JSON.stringify(project));
 }
 
 function bindProjectActions() {
@@ -1244,6 +1635,7 @@ function renderAll() {
   renderSegments();
   renderGlossary();
   applyEditorPosition();
+  refreshOnboardingPosition();
 }
 
 function renderMeta() {
@@ -1350,6 +1742,10 @@ function stampUpdated() {
 }
 
 function persistProjectToStorage() {
+  if (onboarding.demoLoaded) {
+    return;
+  }
+
   try {
     const payload = {
       project: {
