@@ -19,6 +19,7 @@ const state = {
   fileHandle: null,
   projectHandle: null,
 };
+const LOCAL_STORAGE_KEY = "adagioTranslate.currentProject.v1";
 
 const els = {
   workspace: document.getElementById("workspace"),
@@ -69,6 +70,7 @@ function init() {
   bindEditActions();
   bindDialogs();
   bindEditor();
+  loadProjectFromStorage();
   renderAll();
 }
 
@@ -259,6 +261,7 @@ function newProject() {
   state.activeSegmentId = null;
   state.projectHandle = null;
   state.fileHandle = null;
+  persistProjectToStorage();
   renderAll();
 }
 
@@ -377,6 +380,7 @@ function resegmentFromSource() {
 
 function selectSegment(segmentId) {
   state.activeSegmentId = segmentId;
+  persistProjectToStorage();
   renderSegments();
   renderEditor();
   renderGlossary();
@@ -499,38 +503,10 @@ async function loadProjectFromFile(file) {
     const raw = await file.text();
     const parsed = JSON.parse(raw);
 
-    if (!parsed || !parsed.meta || !Array.isArray(parsed.segments) || !Array.isArray(parsed.glossary)) {
-      throw new Error("Invalid project schema");
-    }
-
-    state.project = {
-      meta: {
-        name: parsed.meta.name || stripExtension(file.name),
-        sourceLanguage: parsed.meta.sourceLanguage || "",
-        targetLanguage: parsed.meta.targetLanguage || "",
-        splitMode: parsed.meta.splitMode || "sentence",
-        editorPosition: parsed.meta.editorPosition || "right",
-        createdAt: parsed.meta.createdAt || new Date().toISOString(),
-        updatedAt: parsed.meta.updatedAt || new Date().toISOString(),
-      },
-      sourceText: parsed.sourceText || rebuildSourceText(parsed.segments, parsed.meta.splitMode),
-      segments: parsed.segments.map((segment, index) => ({
-        id: segment.id || `seg-${index + 1}`,
-        source: segment.source || "",
-        translation: segment.translation || "",
-        index,
-      })),
-      glossary: parsed.glossary
-        .filter((item) => item && item.targetTerm && item.translation)
-        .map((item) => ({
-          targetTerm: String(item.targetTerm),
-          translation: String(item.translation),
-          addedAt: item.addedAt || new Date().toISOString(),
-          updatedAt: item.updatedAt || null,
-        })),
-    };
+    state.project = normalizeProjectData(parsed, stripExtension(file.name));
 
     state.activeSegmentId = state.project.segments[0]?.id || null;
+    persistProjectToStorage();
     renderAll();
   } catch (error) {
     console.error(error);
@@ -649,6 +625,89 @@ function applyEditorPosition() {
 
 function stampUpdated() {
   state.project.meta.updatedAt = new Date().toISOString();
+  persistProjectToStorage();
+}
+
+function persistProjectToStorage() {
+  try {
+    const payload = {
+      project: {
+        meta: { ...state.project.meta },
+        sourceText: state.project.sourceText,
+        segments: state.project.segments.map((segment) => ({
+          id: segment.id,
+          source: segment.source,
+          translation: segment.translation,
+        })),
+        glossary: state.project.glossary.map((entry) => ({
+          targetTerm: entry.targetTerm,
+          translation: entry.translation,
+          addedAt: entry.addedAt || null,
+          updatedAt: entry.updatedAt || null,
+        })),
+      },
+      activeSegmentId: state.activeSegmentId,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Could not persist project to local storage.", error);
+  }
+}
+
+function loadProjectFromStorage() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    const parsed = JSON.parse(raw);
+    const storedProject = parsed && parsed.project ? parsed.project : parsed;
+    state.project = normalizeProjectData(storedProject, "Untitled Project");
+
+    const preferredSegmentId = parsed && typeof parsed.activeSegmentId === "string"
+      ? parsed.activeSegmentId
+      : null;
+    const hasPreferred = preferredSegmentId
+      && state.project.segments.some((segment) => segment.id === preferredSegmentId);
+    state.activeSegmentId = hasPreferred ? preferredSegmentId : state.project.segments[0]?.id || null;
+  } catch (error) {
+    console.warn("Could not load project from local storage. Starting fresh.", error);
+  }
+}
+
+function normalizeProjectData(parsed, fallbackName = "Untitled Project") {
+  if (!parsed || !parsed.meta || !Array.isArray(parsed.segments) || !Array.isArray(parsed.glossary)) {
+    throw new Error("Invalid project schema");
+  }
+
+  return {
+    meta: {
+      name: parsed.meta.name || fallbackName,
+      sourceLanguage: parsed.meta.sourceLanguage || "",
+      targetLanguage: parsed.meta.targetLanguage || "",
+      splitMode: parsed.meta.splitMode || "sentence",
+      editorPosition: parsed.meta.editorPosition || "right",
+      createdAt: parsed.meta.createdAt || new Date().toISOString(),
+      updatedAt: parsed.meta.updatedAt || new Date().toISOString(),
+    },
+    sourceText: parsed.sourceText || rebuildSourceText(parsed.segments, parsed.meta.splitMode),
+    segments: parsed.segments.map((segment, index) => ({
+      id: segment.id || `seg-${index + 1}`,
+      source: segment.source || "",
+      translation: segment.translation || "",
+      index,
+    })),
+    glossary: parsed.glossary
+      .filter((item) => item && item.targetTerm && item.translation)
+      .map((item) => ({
+        targetTerm: String(item.targetTerm),
+        translation: String(item.translation),
+        addedAt: item.addedAt || new Date().toISOString(),
+        updatedAt: item.updatedAt || null,
+      })),
+  };
 }
 
 function getSelectedTextInField(field) {
