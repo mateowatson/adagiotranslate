@@ -19,9 +19,11 @@ const state = {
   fileHandle: null,
   projectHandle: null,
   lastFocusedEditable: null,
+  uiLanguage: "en",
 };
 const LOCAL_STORAGE_KEY = "adagioTranslate.currentProject.v1";
 const ONBOARDING_STATUS_STORAGE_KEY = "adagioTranslate.onboardingStatus.v1";
+const UI_LANGUAGE_STORAGE_KEY = "adagioTranslate.uiLanguage.v1";
 const GOOGLE_API_KEY_STORAGE_KEY = "adagioTranslate.googleApiKey.v1";
 const MYMEMORY_EMAIL_STORAGE_KEY = "adagioTranslate.myMemoryEmail.v1";
 const MT_PROVIDER_STORAGE_KEY = "adagioTranslate.mtProvider.v1";
@@ -98,25 +100,282 @@ const LANGUAGE_LABELS = {
   ur: "Urdu",
   vi: "Vietnamese",
 };
+const LANGUAGE_LABELS_ES = {
+  ar: "Árabe",
+  bn: "Bengalí",
+  zh: "Chino (simplificado)",
+  "zh-TW": "Chino (tradicional)",
+  nl: "Neerlandés",
+  en: "Inglés",
+  fr: "Francés",
+  de: "Alemán",
+  el: "Griego",
+  he: "Hebreo",
+  hi: "Hindi",
+  id: "Indonesio",
+  it: "Italiano",
+  ja: "Japonés",
+  ko: "Coreano",
+  fa: "Persa",
+  pl: "Polaco",
+  pt: "Portugués",
+  ru: "Ruso",
+  es: "Español",
+  sv: "Sueco",
+  th: "Tailandés",
+  tr: "Turco",
+  uk: "Ucraniano",
+  ur: "Urdu",
+  vi: "Vietnamita",
+};
+const UI_TEXT = {
+  en: {
+    app_title: "Adagio Translate",
+    menu_file: "File",
+    menu_edit: "Edit",
+    menu_view: "View",
+    local_settings: "Local Settings",
+    new_project: "New Project",
+    import_document: "Import Document",
+    open_project: "Open Project",
+    save_project: "Save Project",
+    save_project_as: "Save Project As",
+    export_md: "Export Target as Markdown",
+    export_docx: "Export Target as DOCX",
+    undo: "Undo",
+    redo: "Redo",
+    cut: "Cut",
+    copy: "Copy",
+    paste: "Paste",
+    select_all: "Select All",
+    split_mode: "Split Mode",
+    editor_position: "Editor Position",
+    sentence: "Sentence",
+    paragraph: "Paragraph",
+    bottom: "Bottom",
+    right: "Right",
+    segments: "Segments",
+    resegment: "Re-Segment",
+    segments_help: "Click a segment to edit its translation inline.",
+    segment_count: "{count} segments",
+    glossary: "Glossary",
+    add_entry: "Add Entry",
+    glossary_help: "Relevant entries for selected segment appear here.",
+    glossary_no_entries: "No glossary entries yet.",
+    glossary_no_matches: "No glossary matches for this segment.",
+    glossary_summary_prefix: "Glossary",
+    view_all_glossary_matches: "View all glossary matches",
+    project_setup: "Project Setup",
+    source_language: "Source Language",
+    target_language: "Target Language",
+    select_source_language: "Select source language",
+    select_target_language: "Select target language",
+    split_method: "Split Method",
+    cancel: "Cancel",
+    continue: "Continue",
+    add_glossary_entry: "Add Glossary Entry",
+    target_term: "Target Term",
+    translation_meaning: "Translation / Meaning",
+    add: "Add",
+    close: "Close",
+    glossary_matches: "Glossary Matches",
+    local_settings_title: "Local Settings",
+    local_settings_note:
+      "Machine translation settings and API keys are stored only in this browser and are not included in exported project JSON files.",
+    app_language: "App Language",
+    translation_provider: "Translation Provider",
+    provider_none: "None",
+    provider_mymemory: "MyMemory (No account)",
+    provider_google: "Google Translate (API key)",
+    google_api_key: "Google Cloud API Key",
+    mymemory_email: "MyMemory Email (optional)",
+    clear_keys: "Clear Keys",
+    save_settings: "Save Settings",
+    no_languages_set: "No languages set",
+    target_translation: "Translation",
+    write_translation_here: "Write translation here...",
+    status_pending: "pending",
+    status_translated: "translated",
+    status_prefix: "Status",
+    auto_translate_segment: "Auto-Translate Segment",
+    translating: "Translating...",
+    select_segment_first: "Select a segment first.",
+    set_languages_first: "Set source and target languages first.",
+    configure_mt_first: "Configure machine translation in Local Settings first.",
+    selected_segment_no_source: "Selected segment has no source text.",
+    requesting_translation: "Requesting translation...",
+    segment_translated: "Segment translated.",
+    translation_failed: "Translation failed.",
+    no_translated_segments: "No translated segments to export yet.",
+    docx_export_unavailable: "DOCX export library is not available. Reload and try again.",
+    could_not_export_docx: "Could not export DOCX.",
+    project_saved: "Project saved.",
+    could_not_save_picker_fallback: "Could not save via File System Access API. Downloading instead.",
+    could_not_open_picker_fallback: "Could not open file picker. Falling back to standard upload.",
+    invalid_project_file: "The selected project file is invalid.",
+    empty_document_file: "The selected file has no readable text content.",
+    start_new_project_confirm: "Start a new project? Unsaved changes in the current project will be lost.",
+    local_settings_loaded: "Local machine translation settings loaded.",
+    local_settings_saved: "Local machine translation settings saved.",
+    local_settings_save_failed: "Could not save local settings.",
+    api_keys_cleared: "Saved API keys cleared.",
+    api_keys_clear_failed: "Could not clear API keys.",
+    local_settings_read_failed: "Could not read local settings.",
+    local_settings_local_notice: "These settings are local to this browser.",
+    onboarding_header: "Quick Tour",
+    onboarding_step_counter: "Step {current} of {total}",
+    onboarding_back: "Back",
+    onboarding_next: "Next",
+    onboarding_finish: "Finish",
+    onboarding_skip: "Skip",
+  },
+  es: {
+    app_title: "Adagio Translate",
+    menu_file: "Archivo",
+    menu_edit: "Editar",
+    menu_view: "Ver",
+    local_settings: "Configuración local",
+    new_project: "Nuevo proyecto",
+    import_document: "Importar documento",
+    open_project: "Abrir proyecto",
+    save_project: "Guardar proyecto",
+    save_project_as: "Guardar proyecto como",
+    export_md: "Exportar destino como Markdown",
+    export_docx: "Exportar destino como DOCX",
+    undo: "Deshacer",
+    redo: "Rehacer",
+    cut: "Cortar",
+    copy: "Copiar",
+    paste: "Pegar",
+    select_all: "Seleccionar todo",
+    split_mode: "Modo de segmentación",
+    editor_position: "Posición del editor",
+    sentence: "Oración",
+    paragraph: "Párrafo",
+    bottom: "Abajo",
+    right: "Derecha",
+    segments: "Segmentos",
+    resegment: "Volver a segmentar",
+    segments_help: "Haz clic en un segmento para editar su traducción en línea.",
+    segment_count: "{count} segmentos",
+    glossary: "Glosario",
+    add_entry: "Agregar entrada",
+    glossary_help: "Aquí aparecen las entradas relevantes para el segmento seleccionado.",
+    glossary_no_entries: "Aún no hay entradas en el glosario.",
+    glossary_no_matches: "No hay coincidencias de glosario para este segmento.",
+    glossary_summary_prefix: "Glosario",
+    view_all_glossary_matches: "Ver todas las coincidencias del glosario",
+    project_setup: "Configuración del proyecto",
+    source_language: "Idioma de origen",
+    target_language: "Idioma de destino",
+    select_source_language: "Selecciona idioma de origen",
+    select_target_language: "Selecciona idioma de destino",
+    split_method: "Método de segmentación",
+    cancel: "Cancelar",
+    continue: "Continuar",
+    add_glossary_entry: "Agregar entrada al glosario",
+    target_term: "Término objetivo",
+    translation_meaning: "Traducción / Significado",
+    add: "Agregar",
+    close: "Cerrar",
+    glossary_matches: "Coincidencias del glosario",
+    local_settings_title: "Configuración local",
+    local_settings_note:
+      "La configuración de traducción automática y las claves API se guardan solo en este navegador y no se incluyen en los archivos JSON exportados.",
+    app_language: "Idioma de la aplicación",
+    translation_provider: "Proveedor de traducción",
+    provider_none: "Ninguno",
+    provider_mymemory: "MyMemory (sin cuenta)",
+    provider_google: "Google Translate (clave API)",
+    google_api_key: "Clave API de Google Cloud",
+    mymemory_email: "Correo de MyMemory (opcional)",
+    clear_keys: "Borrar claves",
+    save_settings: "Guardar configuración",
+    no_languages_set: "Idiomas no configurados",
+    target_translation: "Traducción",
+    write_translation_here: "Escribe la traducción aquí...",
+    status_pending: "pendiente",
+    status_translated: "traducido",
+    status_prefix: "Estado",
+    auto_translate_segment: "Traducir segmento automáticamente",
+    translating: "Traduciendo...",
+    select_segment_first: "Primero selecciona un segmento.",
+    set_languages_first: "Primero configura idioma de origen y destino.",
+    configure_mt_first: "Configura traducción automática en Configuración local primero.",
+    selected_segment_no_source: "El segmento seleccionado no tiene texto de origen.",
+    requesting_translation: "Solicitando traducción...",
+    segment_translated: "Segmento traducido.",
+    translation_failed: "La traducción falló.",
+    no_translated_segments: "Aún no hay segmentos traducidos para exportar.",
+    docx_export_unavailable: "La librería de exportación DOCX no está disponible. Recarga e inténtalo de nuevo.",
+    could_not_export_docx: "No se pudo exportar DOCX.",
+    project_saved: "Proyecto guardado.",
+    could_not_save_picker_fallback: "No se pudo guardar con File System Access API. Se descargará el archivo.",
+    could_not_open_picker_fallback: "No se pudo abrir el selector de archivos. Se usará la carga estándar.",
+    invalid_project_file: "El archivo de proyecto seleccionado no es válido.",
+    empty_document_file: "El archivo seleccionado no tiene contenido de texto legible.",
+    start_new_project_confirm:
+      "¿Iniciar un nuevo proyecto? Se perderán los cambios no guardados del proyecto actual.",
+    local_settings_loaded: "Configuración local de traducción automática cargada.",
+    local_settings_saved: "Configuración local de traducción automática guardada.",
+    local_settings_save_failed: "No se pudo guardar la configuración local.",
+    api_keys_cleared: "Se borraron las claves guardadas.",
+    api_keys_clear_failed: "No se pudieron borrar las claves.",
+    local_settings_read_failed: "No se pudo leer la configuración local.",
+    local_settings_local_notice: "Esta configuración se guarda localmente en este navegador.",
+    onboarding_header: "Guía rápida",
+    onboarding_step_counter: "Paso {current} de {total}",
+    onboarding_back: "Atrás",
+    onboarding_next: "Siguiente",
+    onboarding_finish: "Finalizar",
+    onboarding_skip: "Omitir",
+  },
+};
+const ONBOARDING_COPY = {
+  en: {
+    file_menu: { title: "File Actions", body: "Use File to import documents, open/save projects, and export finished translations." },
+    segments: { title: "Segments", body: "Your document is split into segments here. Click any segment to work on it." },
+    translation: { title: "Inline Translation", body: "After selecting a segment, the target text area appears inline so you can translate directly." },
+    auto_translate: { title: "Auto-Translate", body: "If machine translation is configured, this button appears next to the selected segment." },
+    glossary: { title: "Glossary", body: "Add term translations here to keep wording consistent across the project." },
+    local_settings: { title: "Local Settings", body: "Choose translation provider and optional credentials here. These settings stay local and are not saved in project JSON exports." },
+  },
+  es: {
+    file_menu: { title: "Acciones de archivo", body: "Usa Archivo para importar documentos, abrir/guardar proyectos y exportar traducciones terminadas." },
+    segments: { title: "Segmentos", body: "Aquí se divide tu documento en segmentos. Haz clic en cualquier segmento para trabajar en él." },
+    translation: { title: "Traducción en línea", body: "Después de seleccionar un segmento, el área de texto de destino aparece en línea para traducir directamente." },
+    auto_translate: { title: "Traducción automática", body: "Si la traducción automática está configurada, este botón aparece junto al segmento seleccionado." },
+    glossary: { title: "Glosario", body: "Agrega traducciones de términos aquí para mantener consistencia en todo el proyecto." },
+    local_settings: { title: "Configuración local", body: "Elige proveedor de traducción y credenciales opcionales aquí. Esta configuración es local y no se guarda en JSON exportado." },
+  },
+};
 
 const els = {
   workspace: document.getElementById("workspace"),
   projectMeta: document.getElementById("project-meta"),
+  brandText: document.querySelector(".brand-text"),
   splitMode: document.getElementById("split-mode"),
   editorPosition: document.getElementById("editor-position"),
   segmentList: document.getElementById("segment-list"),
   segmentCount: document.getElementById("segment-count"),
   resegmentBtn: document.getElementById("resegment-btn"),
+  segmentsTitle: document.getElementById("segments-title"),
+  segmentsHelpNote: document.getElementById("segments-help-note"),
 
+  glossaryTitle: document.getElementById("glossary-title"),
   glossaryList: document.getElementById("glossary-list"),
   addGlossaryBtn: document.getElementById("add-glossary-btn"),
+  glossaryHelpNote: document.getElementById("glossary-help-note"),
   localSettingsBtn: document.getElementById("local-settings-btn"),
+  appUiLanguageSelect: document.getElementById("app-ui-language-select"),
   mtProviderSelect: document.getElementById("mt-provider-select"),
   googleApiKeyInput: document.getElementById("google-api-key-input"),
   myMemoryEmailInput: document.getElementById("mymemory-email-input"),
   saveGoogleKeyBtn: document.getElementById("save-google-key-btn"),
   clearGoogleKeyBtn: document.getElementById("clear-google-key-btn"),
   localSettingsDialog: document.getElementById("local-settings-dialog"),
+  localSettingsTitle: document.getElementById("local-settings-title"),
+  localSettingsNote: document.getElementById("local-settings-note"),
   localSettingsStatus: document.getElementById("local-settings-status"),
   localSettingsCloseBtn: document.getElementById("local-settings-close-btn"),
 
@@ -133,6 +392,7 @@ const els = {
 
   projectSetupDialog: document.getElementById("project-setup-dialog"),
   projectSetupForm: document.getElementById("project-setup-form"),
+  projectSetupTitle: document.getElementById("project-setup-title"),
   sourceLanguageInput: document.getElementById("source-language"),
   targetLanguageInput: document.getElementById("target-language"),
   setupSplitMode: document.getElementById("setup-split-mode"),
@@ -140,10 +400,12 @@ const els = {
 
   glossaryDialog: document.getElementById("glossary-dialog"),
   glossaryForm: document.getElementById("glossary-form"),
+  glossaryDialogTitle: document.getElementById("glossary-dialog-title"),
   glossaryTargetTerm: document.getElementById("glossary-target-term"),
   glossaryTranslation: document.getElementById("glossary-translation"),
   glossaryCancelBtn: document.getElementById("glossary-cancel-btn"),
   glossaryMatchesDialog: document.getElementById("glossary-matches-dialog"),
+  glossaryMatchesTitle: document.getElementById("glossary-matches-title"),
   glossaryMatchesList: document.getElementById("glossary-matches-list"),
   glossaryMatchesCloseBtn: document.getElementById("glossary-matches-close-btn"),
 };
@@ -162,6 +424,7 @@ const onboarding = {
 init();
 
 function init() {
+  state.uiLanguage = resolvePreferredUiLanguage();
   bindMenuBehavior();
   bindProjectActions();
   bindEditActions();
@@ -171,8 +434,177 @@ function init() {
   bindResponsiveLayout();
   loadProjectFromStorage();
   loadMachineTranslationSettingsFromStorage();
+  applyUiLanguage();
   renderAll();
   initOnboarding();
+}
+
+function resolvePreferredUiLanguage() {
+  try {
+    const stored = (localStorage.getItem(UI_LANGUAGE_STORAGE_KEY) || "").trim().toLowerCase();
+    if (stored === "en" || stored === "es") {
+      return stored;
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  const browserLangs = Array.isArray(navigator.languages) && navigator.languages.length
+    ? navigator.languages
+    : [navigator.language || ""];
+  const first = String(browserLangs[0] || "").toLowerCase();
+  return first.startsWith("es") ? "es" : "en";
+}
+
+function t(key, vars = {}) {
+  const lang = state.uiLanguage === "es" ? "es" : "en";
+  const table = UI_TEXT[lang] || UI_TEXT.en;
+  const fallback = UI_TEXT.en[key] || key;
+  const template = table[key] || fallback;
+  return String(template).replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? ""));
+}
+
+function setLeadingLabelText(controlEl, text) {
+  if (!controlEl) {
+    return;
+  }
+  const label = controlEl.closest("label");
+  if (!label) {
+    return;
+  }
+  const firstTextNode = Array.from(label.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+  if (firstTextNode) {
+    firstTextNode.textContent = `${text}\n`;
+  } else {
+    label.prepend(document.createTextNode(`${text}\n`));
+  }
+}
+
+function applyUiLanguage() {
+  const lang = state.uiLanguage === "es" ? "es" : "en";
+  document.documentElement.lang = lang;
+
+  if (els.brandText) {
+    els.brandText.textContent = t("app_title");
+  }
+
+  const fileSummary = document.querySelector("#menu-file > summary");
+  const editSummary = document.querySelector("#menu-edit > summary");
+  const viewSummary = document.querySelector("#menu-view > summary");
+  if (fileSummary) fileSummary.textContent = t("menu_file");
+  if (editSummary) editSummary.textContent = t("menu_edit");
+  if (viewSummary) viewSummary.textContent = t("menu_view");
+
+  els.localSettingsBtn.textContent = t("local_settings");
+  els.newProjectBtn.textContent = t("new_project");
+  els.importDocBtn.textContent = t("import_document");
+  els.openProjectBtn.textContent = t("open_project");
+  els.saveProjectBtn.textContent = t("save_project");
+  els.saveProjectAsBtn.textContent = t("save_project_as");
+  els.exportMdBtn.textContent = t("export_md");
+  els.exportDocxBtn.textContent = t("export_docx");
+  els.resegmentBtn.textContent = t("resegment");
+  els.segmentsTitle.textContent = t("segments");
+  els.segmentsHelpNote.textContent = t("segments_help");
+  els.glossaryTitle.textContent = t("glossary");
+  els.addGlossaryBtn.textContent = t("add_entry");
+  els.glossaryHelpNote.textContent = t("glossary_help");
+
+  const editButtons = document.querySelectorAll("[data-edit-action]");
+  editButtons.forEach((btn) => {
+    const action = btn.getAttribute("data-edit-action");
+    if (action === "undo") btn.textContent = t("undo");
+    if (action === "redo") btn.textContent = t("redo");
+    if (action === "cut") btn.textContent = t("cut");
+    if (action === "copy") btn.textContent = t("copy");
+    if (action === "paste") btn.textContent = t("paste");
+    if (action === "selectAll") btn.textContent = t("select_all");
+  });
+
+  const viewLabelSpans = document.querySelectorAll("#menu-view .menu-items label > span");
+  if (viewLabelSpans[0]) viewLabelSpans[0].textContent = t("split_mode");
+  if (viewLabelSpans[1]) viewLabelSpans[1].textContent = t("editor_position");
+
+  if (els.splitMode.options[0]) els.splitMode.options[0].text = t("sentence");
+  if (els.splitMode.options[1]) els.splitMode.options[1].text = t("paragraph");
+  if (els.editorPosition.options[0]) els.editorPosition.options[0].text = t("bottom");
+  if (els.editorPosition.options[1]) els.editorPosition.options[1].text = t("right");
+  if (els.setupSplitMode.options[0]) els.setupSplitMode.options[0].text = t("sentence");
+  if (els.setupSplitMode.options[1]) els.setupSplitMode.options[1].text = t("paragraph");
+
+  els.projectSetupTitle.textContent = t("project_setup");
+  setLeadingLabelText(els.sourceLanguageInput, t("source_language"));
+  setLeadingLabelText(els.targetLanguageInput, t("target_language"));
+  setLeadingLabelText(els.setupSplitMode, t("split_method"));
+  localizeProjectLanguageSelect(els.sourceLanguageInput, t("select_source_language"));
+  localizeProjectLanguageSelect(els.targetLanguageInput, t("select_target_language"));
+  els.setupCancelBtn.textContent = t("cancel");
+  const setupSubmit = els.projectSetupForm.querySelector('button[type="submit"]');
+  if (setupSubmit) setupSubmit.textContent = t("continue");
+
+  els.glossaryDialogTitle.textContent = t("add_glossary_entry");
+  setLeadingLabelText(els.glossaryTargetTerm, t("target_term"));
+  setLeadingLabelText(els.glossaryTranslation, t("translation_meaning"));
+  els.glossaryCancelBtn.textContent = t("cancel");
+  const glossarySubmit = els.glossaryForm.querySelector('button[type="submit"]');
+  if (glossarySubmit) glossarySubmit.textContent = t("add");
+
+  els.glossaryMatchesTitle.textContent = t("glossary_matches");
+  els.glossaryMatchesCloseBtn.textContent = t("close");
+
+  els.localSettingsTitle.textContent = t("local_settings_title");
+  els.localSettingsNote.textContent = t("local_settings_note");
+  setLeadingLabelText(els.appUiLanguageSelect, t("app_language"));
+  setLeadingLabelText(els.mtProviderSelect, t("translation_provider"));
+  setLeadingLabelText(els.googleApiKeyInput, t("google_api_key"));
+  setLeadingLabelText(els.myMemoryEmailInput, t("mymemory_email"));
+  if (els.mtProviderSelect.options[0]) els.mtProviderSelect.options[0].text = t("provider_none");
+  if (els.mtProviderSelect.options[1]) els.mtProviderSelect.options[1].text = t("provider_mymemory");
+  if (els.mtProviderSelect.options[2]) els.mtProviderSelect.options[2].text = t("provider_google");
+  if (els.appUiLanguageSelect.options[0]) els.appUiLanguageSelect.options[0].text = "English";
+  if (els.appUiLanguageSelect.options[1]) els.appUiLanguageSelect.options[1].text = "Español";
+  els.localSettingsCloseBtn.textContent = t("close");
+  els.clearGoogleKeyBtn.textContent = t("clear_keys");
+  els.saveGoogleKeyBtn.textContent = t("save_settings");
+
+  if (onboarding.active) {
+    showOnboardingStep(onboarding.stepIndex);
+  }
+}
+
+function localizeProjectLanguageSelect(selectEl, placeholderText) {
+  if (!selectEl) {
+    return;
+  }
+
+  const currentValue = selectEl.value;
+  const locale = state.uiLanguage === "es" ? "es" : "en";
+  const collator = new Intl.Collator(locale, { sensitivity: "base" });
+
+  const options = Array.from(selectEl.options || []);
+  let placeholderOption = null;
+  const valueOptions = [];
+
+  options.forEach((option) => {
+    const value = String(option.value || "").trim();
+    if (!value) {
+      option.text = placeholderText;
+      placeholderOption = option;
+      return;
+    }
+
+    option.text = getLanguageLabel(value) || option.text || value;
+    valueOptions.push(option);
+  });
+
+  valueOptions.sort((a, b) => collator.compare(a.text, b.text));
+
+  selectEl.innerHTML = "";
+  if (placeholderOption) {
+    selectEl.appendChild(placeholderOption);
+  }
+  valueOptions.forEach((option) => selectEl.appendChild(option));
+  selectEl.value = currentValue;
 }
 
 function bindMenuBehavior() {
@@ -237,14 +669,14 @@ function createOnboardingUi() {
   const popover = document.createElement("div");
   popover.className = "onboarding-popover";
   popover.innerHTML = `
-    <div class="onboarding-header">Quick Tour</div>
+    <div class="onboarding-header"></div>
     <div class="onboarding-step"></div>
     <h4 class="onboarding-title"></h4>
     <p class="onboarding-body"></p>
     <div class="onboarding-actions">
-      <button type="button" data-onboarding-action="back">Back</button>
-      <button type="button" data-onboarding-action="next">Next</button>
-      <button type="button" data-onboarding-action="skip">Skip</button>
+      <button type="button" data-onboarding-action="back"></button>
+      <button type="button" data-onboarding-action="next"></button>
+      <button type="button" data-onboarding-action="skip"></button>
     </div>
   `;
 
@@ -305,27 +737,48 @@ function updateOnboardingContent(step, stepIndex) {
     return;
   }
 
+  const stepCopy = getOnboardingCopy(step.id);
+  const header = popover.querySelector(".onboarding-header");
   const stepCounter = popover.querySelector(".onboarding-step");
   const title = popover.querySelector(".onboarding-title");
   const body = popover.querySelector(".onboarding-body");
   const backBtn = popover.querySelector('[data-onboarding-action="back"]');
   const nextBtn = popover.querySelector('[data-onboarding-action="next"]');
+  const skipBtn = popover.querySelector('[data-onboarding-action="skip"]');
 
+  if (header) {
+    header.textContent = t("onboarding_header");
+  }
   if (stepCounter) {
-    stepCounter.textContent = `Step ${stepIndex + 1} of ${ONBOARDING_STEPS.length}`;
+    stepCounter.textContent = t("onboarding_step_counter", {
+      current: stepIndex + 1,
+      total: ONBOARDING_STEPS.length,
+    });
   }
   if (title) {
-    title.textContent = step.title;
+    title.textContent = stepCopy.title;
   }
   if (body) {
-    body.textContent = step.body;
+    body.textContent = stepCopy.body;
   }
   if (backBtn) {
+    backBtn.textContent = t("onboarding_back");
     backBtn.disabled = stepIndex === 0;
   }
   if (nextBtn) {
-    nextBtn.textContent = stepIndex === ONBOARDING_STEPS.length - 1 ? "Finish" : "Next";
+    nextBtn.textContent = stepIndex === ONBOARDING_STEPS.length - 1 ? t("onboarding_finish") : t("onboarding_next");
   }
+  if (skipBtn) {
+    skipBtn.textContent = t("onboarding_skip");
+  }
+}
+
+function getOnboardingCopy(stepId) {
+  const lang = state.uiLanguage === "es" ? "es" : "en";
+  return ONBOARDING_COPY[lang]?.[stepId] || ONBOARDING_COPY.en[stepId] || {
+    title: stepId,
+    body: "",
+  };
 }
 
 function focusOnboardingTarget(step) {
@@ -766,6 +1219,18 @@ function bindLocalSettings() {
   els.localSettingsBtn.addEventListener("click", openLocalSettingsDialog);
   els.saveGoogleKeyBtn.addEventListener("click", saveMachineTranslationSettings);
   els.clearGoogleKeyBtn.addEventListener("click", clearMachineTranslationKeys);
+  els.appUiLanguageSelect.addEventListener("change", () => {
+    const lang = els.appUiLanguageSelect.value === "es" ? "es" : "en";
+    state.uiLanguage = lang;
+    try {
+      localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, lang);
+    } catch (error) {
+      console.error(error);
+    }
+    applyUiLanguage();
+    setMtStatus(t("local_settings_local_notice"), false);
+    renderAll();
+  });
   els.localSettingsCloseBtn.addEventListener("click", () => {
     els.localSettingsDialog.close();
   });
@@ -861,7 +1326,7 @@ function openGlossaryDialog(defaultTerm = "") {
 }
 
 function newProject() {
-  const confirmed = confirm("Start a new project? Unsaved changes in the current project will be lost.");
+  const confirmed = confirm(t("start_new_project_confirm"));
   if (!confirmed) {
     return;
   }
@@ -913,7 +1378,7 @@ async function importDocument() {
     } catch (error) {
       if (error && error.name !== "AbortError") {
         console.error(error);
-        alert("Could not open file picker. Falling back to standard upload.");
+        alert(t("could_not_open_picker_fallback"));
       }
     }
   }
@@ -933,7 +1398,7 @@ async function handleDocumentFileInput() {
 async function processImportedDocument(file) {
   const text = await readTextFromFile(file);
   if (!text.trim()) {
-    alert("The selected file has no readable text content.");
+    alert(t("empty_document_file"));
     return;
   }
 
@@ -1122,12 +1587,12 @@ async function saveProject(forceNewHandle) {
       await writable.close();
 
       state.projectHandle = handle;
-      alert("Project saved.");
+      alert(t("project_saved"));
       return;
     } catch (error) {
       if (error && error.name !== "AbortError") {
         console.error(error);
-        alert("Could not save via File System Access API. Downloading instead.");
+        alert(t("could_not_save_picker_fallback"));
       } else {
         return;
       }
@@ -1163,7 +1628,7 @@ async function openProject() {
     } catch (error) {
       if (error && error.name !== "AbortError") {
         console.error(error);
-        alert("Could not open file picker. Falling back to standard upload.");
+        alert(t("could_not_open_picker_fallback"));
       }
     }
   }
@@ -1192,32 +1657,32 @@ async function loadProjectFromFile(file) {
     renderAll();
   } catch (error) {
     console.error(error);
-    alert("The selected project file is invalid.");
+    alert(t("invalid_project_file"));
   }
 }
 
 async function translateActiveSegment(triggerButton = null) {
   const activeSegment = getActiveSegment();
   if (!activeSegment) {
-    setMtStatus("Select a segment first.", true);
+    setMtStatus(t("select_segment_first"), true);
     return;
   }
 
   const source = state.project.meta.sourceLanguage;
   const target = state.project.meta.targetLanguage;
   if (!source || !target) {
-    setMtStatus("Set source and target languages first.", true);
+    setMtStatus(t("set_languages_first"), true);
     return;
   }
 
   const provider = getMachineTranslationProvider();
   if (!isProviderConfigured(provider)) {
-    setMtStatus("Configure machine translation in Local Settings first.", true);
+    setMtStatus(t("configure_mt_first"), true);
     return;
   }
 
   if (!activeSegment.source.trim()) {
-    setMtStatus("Selected segment has no source text.", true);
+    setMtStatus(t("selected_segment_no_source"), true);
     return;
   }
 
@@ -1225,9 +1690,9 @@ async function translateActiveSegment(triggerButton = null) {
   const previousButtonText = buttonEl ? buttonEl.textContent : "";
   if (buttonEl) {
     buttonEl.disabled = true;
-    buttonEl.textContent = "Translating...";
+    buttonEl.textContent = t("translating");
   }
-  setMtStatus("Requesting translation...", false);
+  setMtStatus(t("requesting_translation"), false);
 
   try {
     const translatedText = await requestTranslationByProvider({
@@ -1241,10 +1706,10 @@ async function translateActiveSegment(triggerButton = null) {
     stampUpdated();
     renderSegments();
     renderGlossary();
-    setMtStatus("Segment translated.", false);
+    setMtStatus(t("segment_translated"), false);
   } catch (error) {
     console.error(error);
-    setMtStatus(error.message || "Translation failed.", true);
+    setMtStatus(error.message || t("translation_failed"), true);
   } finally {
     if (buttonEl) {
       buttonEl.disabled = false;
@@ -1327,7 +1792,7 @@ async function requestMyMemoryTranslation({ source, target, text, email = "" }) 
 function exportTargetAsMarkdown() {
   const translatedSegments = getTranslatedSegments();
   if (!translatedSegments.length) {
-    alert("No translated segments to export yet.");
+    alert(t("no_translated_segments"));
     return;
   }
 
@@ -1357,12 +1822,12 @@ function exportTargetAsMarkdown() {
 async function exportTargetAsDocx() {
   const translatedSegments = getTranslatedSegments();
   if (!translatedSegments.length) {
-    alert("No translated segments to export yet.");
+    alert(t("no_translated_segments"));
     return;
   }
 
   if (!window.docx) {
-    alert("DOCX export library is not available. Reload and try again.");
+    alert(t("docx_export_unavailable"));
     return;
   }
 
@@ -1440,7 +1905,7 @@ async function exportTargetAsDocx() {
     downloadBlob(`${sanitizeFilename(state.project.meta.name || "adagio-project")}-target.docx`, blob);
   } catch (error) {
     console.error(error);
-    alert("Could not export DOCX.");
+    alert(t("could_not_export_docx"));
   }
 }
 
@@ -1586,8 +2051,11 @@ function saveMachineTranslationSettings() {
   const provider = (els.mtProviderSelect.value || "mymemory").trim();
   const googleKey = (els.googleApiKeyInput.value || "").trim();
   const myMemoryEmail = (els.myMemoryEmailInput.value || "").trim();
+  const uiLanguage = els.appUiLanguageSelect.value === "es" ? "es" : "en";
   try {
     localStorage.setItem(MT_PROVIDER_STORAGE_KEY, provider);
+    localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, uiLanguage);
+    state.uiLanguage = uiLanguage;
     if (googleKey) {
       localStorage.setItem(GOOGLE_API_KEY_STORAGE_KEY, googleKey);
     }
@@ -1596,11 +2064,12 @@ function saveMachineTranslationSettings() {
     } else {
       localStorage.removeItem(MYMEMORY_EMAIL_STORAGE_KEY);
     }
-    setMtStatus("Local machine translation settings saved.", false);
+    setMtStatus(t("local_settings_saved"), false);
+    applyUiLanguage();
     renderSegments();
   } catch (error) {
     console.error(error);
-    setMtStatus("Could not save local settings.", true);
+    setMtStatus(t("local_settings_save_failed"), true);
   }
 }
 
@@ -1610,23 +2079,25 @@ function clearMachineTranslationKeys() {
     localStorage.removeItem(MYMEMORY_EMAIL_STORAGE_KEY);
     els.googleApiKeyInput.value = "";
     els.myMemoryEmailInput.value = "";
-    setMtStatus("Saved API keys cleared.", false);
+    setMtStatus(t("api_keys_cleared"), false);
     renderSegments();
   } catch (error) {
     console.error(error);
-    setMtStatus("Could not clear API keys.", true);
+    setMtStatus(t("api_keys_clear_failed"), true);
   }
 }
 
 function loadMachineTranslationSettingsFromStorage() {
   try {
+    state.uiLanguage = resolvePreferredUiLanguage();
+    els.appUiLanguageSelect.value = state.uiLanguage;
     els.mtProviderSelect.value = getMachineTranslationProvider();
     els.googleApiKeyInput.value = getStoredGoogleApiKey();
     els.myMemoryEmailInput.value = getStoredMyMemoryEmail();
-    setMtStatus("Local machine translation settings loaded.", false);
+    setMtStatus(t("local_settings_loaded"), false);
   } catch (error) {
     console.error(error);
-    setMtStatus("Could not read local settings.", true);
+    setMtStatus(t("local_settings_read_failed"), true);
   }
 }
 
@@ -1675,7 +2146,7 @@ function renderMeta() {
   const { name, sourceLanguage, targetLanguage } = state.project.meta;
   const sourceLabel = getLanguageLabel(sourceLanguage);
   const targetLabel = getLanguageLabel(targetLanguage);
-  const langText = sourceLanguage && targetLanguage ? `${sourceLabel} -> ${targetLabel}` : "No languages set";
+  const langText = sourceLanguage && targetLanguage ? `${sourceLabel} -> ${targetLabel}` : t("no_languages_set");
   els.projectMeta.textContent = `${name} | ${langText}`;
 
   els.splitMode.value = state.project.meta.splitMode || "sentence";
@@ -1695,8 +2166,8 @@ function renderSegments() {
       item.classList.add("active");
     }
 
-    const translationStatus = segment.translation.trim() ? "translated" : "pending";
-    item.title = `Status: ${translationStatus}`;
+    const translationStatus = segment.translation.trim() ? t("status_translated") : t("status_pending");
+    item.title = `${t("status_prefix")}: ${translationStatus}`;
 
     const content = document.createElement("div");
     content.className = "segment-content";
@@ -1715,14 +2186,14 @@ function renderSegments() {
 
       const label = document.createElement("label");
       label.className = "segment-edit-label";
-      label.textContent = `${getLanguageLabel(state.project.meta.targetLanguage) || "Target"} Translation`;
+      label.textContent = `${getLanguageLabel(state.project.meta.targetLanguage) || t("target_language")} ${t("target_translation")}`;
       editActions.appendChild(label);
 
       if (hasMachineTranslation) {
         const autoTranslateBtn = document.createElement("button");
         autoTranslateBtn.type = "button";
         autoTranslateBtn.className = "segment-auto-translate-btn";
-        autoTranslateBtn.textContent = "Auto-Translate Segment";
+        autoTranslateBtn.textContent = t("auto_translate_segment");
         editActions.appendChild(autoTranslateBtn);
       }
 
@@ -1732,7 +2203,7 @@ function renderSegments() {
 
       const input = document.createElement("textarea");
       input.className = "segment-translation-input";
-      input.placeholder = "Write translation here...";
+      input.placeholder = t("write_translation_here");
       input.value = segment.translation || "";
       input.dataset.segmentId = segment.id;
 
@@ -1744,7 +2215,7 @@ function renderSegments() {
     els.segmentList.appendChild(item);
   });
 
-  els.segmentCount.textContent = `${state.project.segments.length} segments`;
+  els.segmentCount.textContent = t("segment_count", { count: state.project.segments.length });
 }
 
 function buildInlineGlossaryBlock() {
@@ -1756,19 +2227,19 @@ function buildInlineGlossaryBlock() {
 
   const text = document.createElement("span");
   text.className = "segment-inline-glossary-text";
-  text.title = "View all glossary matches";
+  text.title = t("view_all_glossary_matches");
 
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "segment-add-glossary-btn";
-  addBtn.textContent = "Add Entry";
+  addBtn.textContent = t("add_entry");
 
   const entries = getRelevantGlossaryEntries();
   if (!entries.length) {
-    text.textContent = "Glossary: no matches";
+    text.textContent = `${t("glossary_summary_prefix")}: ${t("glossary_no_matches").toLowerCase()}`;
   } else {
     const summary = entries.map((entry) => `${entry.targetTerm} = ${entry.translation}`).join(" | ");
-    text.textContent = `Glossary: ${summary}`;
+    text.textContent = `${t("glossary_summary_prefix")}: ${summary}`;
   }
 
   header.append(text, addBtn);
@@ -1782,7 +2253,7 @@ function openGlossaryMatchesDialog() {
 
   if (!entries.length) {
     const empty = document.createElement("li");
-    empty.textContent = "No glossary matches for this segment.";
+    empty.textContent = t("glossary_no_matches");
     els.glossaryMatchesList.appendChild(empty);
     els.glossaryMatchesDialog.showModal();
     return;
@@ -1807,7 +2278,7 @@ function renderGlossary() {
 
   if (!entries.length) {
     const empty = document.createElement("li");
-    empty.textContent = "No glossary entries yet.";
+    empty.textContent = t("glossary_no_entries");
     els.glossaryList.appendChild(empty);
     return;
   }
@@ -1983,14 +2454,16 @@ function getLanguageLabel(code) {
   if (!code) {
     return "";
   }
-  return LANGUAGE_LABELS[code] || code;
+  const map = state.uiLanguage === "es" ? LANGUAGE_LABELS_ES : LANGUAGE_LABELS;
+  return map[code] || LANGUAGE_LABELS[code] || code;
 }
 
 function openLocalSettingsDialog() {
+  els.appUiLanguageSelect.value = state.uiLanguage;
   els.mtProviderSelect.value = getMachineTranslationProvider();
   els.googleApiKeyInput.value = getStoredGoogleApiKey();
   els.myMemoryEmailInput.value = getStoredMyMemoryEmail();
-  setMtStatus("These settings are local to this browser.", false);
+  setMtStatus(t("local_settings_local_notice"), false);
   els.localSettingsDialog.showModal();
 }
 

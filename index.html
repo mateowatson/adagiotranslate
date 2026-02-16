@@ -72,19 +72,19 @@
 
     <main id="workspace" class="workspace editor-bottom">
       <section class="panel segments-panel">
-        <h2>Segments</h2>
+        <h2 id="segments-title">Segments</h2>
         <div class="segment-controls">
           <button id="resegment-btn">Re-Segment</button>
           <span id="segment-count">0 segments</span>
         </div>
-        <p class="sidebar-note">Click a segment to edit its translation inline.</p>
+        <p id="segments-help-note" class="sidebar-note">Click a segment to edit its translation inline.</p>
         <ol id="segment-list" class="segment-list"></ol>
       </section>
 
       <aside class="panel glossary-panel">
-        <h2>Glossary</h2>
+        <h2 id="glossary-title">Glossary</h2>
         <button id="add-glossary-btn" type="button">Add Entry</button>
-        <p class="sidebar-note">Relevant entries for selected segment appear here.</p>
+        <p id="glossary-help-note" class="sidebar-note">Relevant entries for selected segment appear here.</p>
         <ul id="glossary-list" class="glossary-list"></ul>
       </aside>
     </main>
@@ -94,7 +94,7 @@
 
     <dialog id="project-setup-dialog">
       <form method="dialog" id="project-setup-form">
-        <h3>Project Setup</h3>
+        <h3 id="project-setup-title">Project Setup</h3>
         <label>
           Source Language
           <select id="source-language" required>
@@ -175,7 +175,7 @@
 
     <dialog id="glossary-dialog">
       <form method="dialog" id="glossary-form">
-        <h3>Add Glossary Entry</h3>
+        <h3 id="glossary-dialog-title">Add Glossary Entry</h3>
         <label>
           Target Term
           <input id="glossary-target-term" required />
@@ -193,7 +193,7 @@
 
     <dialog id="glossary-matches-dialog">
       <form method="dialog" id="glossary-matches-form">
-        <h3>Glossary Matches</h3>
+        <h3 id="glossary-matches-title">Glossary Matches</h3>
         <ul id="glossary-matches-list" class="glossary-list"></ul>
         <menu>
           <button value="default" type="button" id="glossary-matches-close-btn">Close</button>
@@ -203,11 +203,18 @@
 
     <dialog id="local-settings-dialog">
       <form method="dialog" id="local-settings-form">
-        <h3>Local Settings</h3>
-        <p class="sidebar-note">
+        <h3 id="local-settings-title">Local Settings</h3>
+        <p id="local-settings-note" class="sidebar-note">
           Machine translation settings and API keys are stored only in this browser and are not included in
           exported project JSON files.
         </p>
+        <label>
+          App Language
+          <select id="app-ui-language-select">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+          </select>
+        </label>
         <label>
           Translation Provider
           <select id="mt-provider-select">
