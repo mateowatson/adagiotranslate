@@ -580,6 +580,8 @@ function stripImagesFromMarkdown(markdown) {
     .replace(/__(?=\S)(.+?)(?<=\S)__/g, "**$1**")
     .replace(/!\[[^\]]*]\([^)]*\)/g, "")
     .replace(/<img\b[^>]*>/gi, "")
+    .replace(/\\\(/g, "(")
+    .replace(/\\\)/g, ")")
     .replace(/\\\./g, ".")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
