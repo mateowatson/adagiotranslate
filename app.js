@@ -34,6 +34,7 @@ const els = {
   sourcePreview: document.getElementById("source-preview"),
   translationInput: document.getElementById("translation-input"),
   glossaryList: document.getElementById("glossary-list"),
+  addGlossaryBtn: document.getElementById("add-glossary-btn"),
 
   importDocBtn: document.getElementById("import-doc-btn"),
   openProjectBtn: document.getElementById("open-project-btn"),
@@ -138,6 +139,8 @@ function bindEditActions() {
 }
 
 function bindDialogs() {
+  els.addGlossaryBtn.addEventListener("click", () => openGlossaryDialog());
+
   els.projectSetupForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const sourceLanguage = els.sourceLanguageInput.value.trim();
@@ -212,17 +215,24 @@ function bindEditor() {
   });
 
   els.translationInput.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
     const selected = getSelectedTextInField(els.translationInput);
-    if (!selected) {
+    const inferred = selected || getWordAtCaret(els.translationInput);
+    if (!inferred) {
+      alert("No word found at cursor. Select text or right-click directly on a word.");
       return;
     }
 
-    event.preventDefault();
-    pendingGlossarySelection = selected;
-    els.glossaryTargetTerm.value = selected;
-    els.glossaryTranslation.value = "";
-    els.glossaryDialog.showModal();
+    pendingGlossarySelection = inferred;
+    openGlossaryDialog(inferred);
   });
+}
+
+function openGlossaryDialog(defaultTerm = "") {
+  pendingGlossarySelection = String(defaultTerm ?? "").trim();
+  els.glossaryTargetTerm.value = pendingGlossarySelection;
+  els.glossaryTranslation.value = "";
+  els.glossaryDialog.showModal();
 }
 
 function newProject() {
@@ -653,6 +663,42 @@ function getSelectedTextInField(field) {
   }
 
   return field.value.slice(field.selectionStart, field.selectionEnd).trim();
+}
+
+function getWordAtCaret(field) {
+  if (!field || typeof field.selectionStart !== "number") {
+    return "";
+  }
+
+  const text = field.value || "";
+  if (!text) {
+    return "";
+  }
+
+  const pos = Math.max(0, Math.min(text.length, field.selectionStart));
+  if (pos >= text.length) {
+    return "";
+  }
+
+  if (!isWordChar(text[pos])) {
+    return "";
+  }
+
+  let start = pos;
+  let end = pos;
+
+  while (start > 0 && isWordChar(text[start - 1])) {
+    start -= 1;
+  }
+  while (end < text.length && isWordChar(text[end])) {
+    end += 1;
+  }
+
+  return text.slice(start, end).trim();
+}
+
+function isWordChar(char) {
+  return /[\p{L}\p{N}_'-]/u.test(char);
 }
 
 function stripExtension(filename) {

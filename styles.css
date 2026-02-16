@@ -247,6 +247,10 @@ textarea {
   gap: 0.45rem;
 }
 
+#add-glossary-btn {
+  margin-bottom: 0.5rem;
+}
+
 .glossary-list li {
   border: 1px solid var(--line);
   border-radius: 8px;
