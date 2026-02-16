@@ -403,15 +403,13 @@ function upsertGlossaryEntry(entry) {
 function getRelevantGlossaryEntries() {
   const segment = getActiveSegment();
   if (!segment) {
-    return state.project.glossary;
+    return [];
   }
 
-  const haystack = `${segment.source} ${segment.translation}`.toLowerCase();
-  const relevant = state.project.glossary.filter((item) =>
-    haystack.includes(item.targetTerm.toLowerCase())
+  const sourceText = (segment.source || "").toLowerCase();
+  return state.project.glossary.filter((item) =>
+    sourceText.includes(item.targetTerm.toLowerCase())
   );
-
-  return relevant.length ? relevant : state.project.glossary;
 }
 
 async function saveProject(forceNewHandle) {
