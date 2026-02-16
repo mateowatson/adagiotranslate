@@ -18,6 +18,7 @@ const state = {
   pendingDocumentName: "",
   fileHandle: null,
   projectHandle: null,
+  lastFocusedEditable: null,
 };
 const LOCAL_STORAGE_KEY = "adagioTranslate.currentProject.v1";
 
@@ -108,17 +109,16 @@ function bindProjectActions() {
 }
 
 function bindEditActions() {
+  document.addEventListener("focusin", (event) => {
+    if (isEditableField(event.target)) {
+      state.lastFocusedEditable = event.target;
+    }
+  });
+
   document.querySelectorAll("[data-edit-action]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const action = btn.dataset.editAction;
-      if (action === "selectAll") {
-        const active = document.activeElement;
-        if (active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT")) {
-          active.select();
-        }
-        return;
-      }
-      document.execCommand(action);
+      await runEditAction(action);
     });
   });
 
@@ -134,6 +134,119 @@ function bindEditActions() {
       saveProject(event.shiftKey);
     }
   });
+}
+
+async function runEditAction(action) {
+  const target = getEditTarget();
+  if (!target || !action) {
+    return;
+  }
+
+  target.focus();
+
+  if (action === "selectAll") {
+    target.select();
+    return;
+  }
+
+  if (action === "paste") {
+    const pasted = await pasteFromClipboard(target);
+    if (!pasted) {
+      document.execCommand("paste");
+    }
+    return;
+  }
+
+  const executed = document.execCommand(action);
+  if (executed) {
+    return;
+  }
+
+  if (action === "copy") {
+    await copySelection(target);
+    return;
+  }
+
+  if (action === "cut") {
+    await cutSelection(target);
+  }
+}
+
+function getEditTarget() {
+  if (isEditableField(document.activeElement)) {
+    return document.activeElement;
+  }
+
+  if (isEditableField(state.lastFocusedEditable) && state.lastFocusedEditable.isConnected) {
+    return state.lastFocusedEditable;
+  }
+
+  if (state.activeSegmentId) {
+    const activeSegmentField = els.segmentList.querySelector(
+      `.segment-translation-input[data-segment-id="${state.activeSegmentId}"]`
+    );
+    if (isEditableField(activeSegmentField)) {
+      return activeSegmentField;
+    }
+  }
+
+  return null;
+}
+
+function isEditableField(node) {
+  return node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement;
+}
+
+async function pasteFromClipboard(field) {
+  if (!navigator.clipboard?.readText) {
+    return false;
+  }
+
+  try {
+    const clipboardText = await navigator.clipboard.readText();
+    if (typeof clipboardText !== "string") {
+      return false;
+    }
+    replaceSelection(field, clipboardText, "end");
+    return true;
+  } catch (error) {
+    console.warn("Paste via Clipboard API failed.", error);
+    return false;
+  }
+}
+
+async function copySelection(field) {
+  if (!navigator.clipboard?.writeText) {
+    return;
+  }
+
+  const selected = getSelectedTextInField(field);
+  if (!selected) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(selected);
+  } catch (error) {
+    console.warn("Copy via Clipboard API failed.", error);
+  }
+}
+
+async function cutSelection(field) {
+  const selected = getSelectedTextInField(field);
+  if (!selected) {
+    return;
+  }
+
+  await copySelection(field);
+  replaceSelection(field, "", "start");
+}
+
+function replaceSelection(field, text, selectionMode = "end") {
+  const start = field.selectionStart ?? 0;
+  const end = field.selectionEnd ?? start;
+  field.setRangeText(text, start, end, selectionMode);
+  field.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function bindDialogs() {
