@@ -67,6 +67,19 @@ body {
   background: var(--accent-soft);
 }
 
+.menu-launcher {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 0.3rem 0.55rem;
+}
+
+.menu-launcher:hover {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
 .menu > summary::-webkit-details-marker {
   display: none;
 }
@@ -252,29 +265,6 @@ textarea {
 
 #add-glossary-btn {
   margin-bottom: 0.5rem;
-}
-
-.translation-tools {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0.55rem;
-  margin-bottom: 0.55rem;
-  display: grid;
-  gap: 0.35rem;
-}
-
-.translation-tools h3 {
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.tool-row {
-  display: flex;
-  gap: 0.35rem;
-}
-
-#mt-status {
-  min-height: 1.2rem;
 }
 
 .glossary-list li {

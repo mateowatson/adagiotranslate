@@ -64,10 +64,13 @@ const els = {
 
   glossaryList: document.getElementById("glossary-list"),
   addGlossaryBtn: document.getElementById("add-glossary-btn"),
+  localSettingsBtn: document.getElementById("local-settings-btn"),
   googleApiKeyInput: document.getElementById("google-api-key-input"),
   saveGoogleKeyBtn: document.getElementById("save-google-key-btn"),
   clearGoogleKeyBtn: document.getElementById("clear-google-key-btn"),
-  mtStatus: document.getElementById("mt-status"),
+  localSettingsDialog: document.getElementById("local-settings-dialog"),
+  localSettingsStatus: document.getElementById("local-settings-status"),
+  localSettingsCloseBtn: document.getElementById("local-settings-close-btn"),
 
   importDocBtn: document.getElementById("import-doc-btn"),
   openProjectBtn: document.getElementById("open-project-btn"),
@@ -102,9 +105,10 @@ function init() {
   bindEditActions();
   bindDialogs();
   bindSegmentEditor();
-  bindMachineTranslate();
+  bindLocalSettings();
   loadProjectFromStorage();
   loadGoogleApiKeyFromStorage();
+  updateAutoTranslateAvailability();
   renderAll();
 }
 
@@ -353,9 +357,13 @@ function bindDialogs() {
   });
 }
 
-function bindMachineTranslate() {
+function bindLocalSettings() {
+  els.localSettingsBtn.addEventListener("click", openLocalSettingsDialog);
   els.saveGoogleKeyBtn.addEventListener("click", saveGoogleApiKey);
   els.clearGoogleKeyBtn.addEventListener("click", clearGoogleApiKey);
+  els.localSettingsCloseBtn.addEventListener("click", () => {
+    els.localSettingsDialog.close();
+  });
 }
 
 function bindSegmentEditor() {
@@ -840,6 +848,7 @@ function saveGoogleApiKey() {
   try {
     localStorage.setItem(GOOGLE_API_KEY_STORAGE_KEY, key);
     setMtStatus("Key saved locally in this browser.", false);
+    updateAutoTranslateAvailability();
   } catch (error) {
     console.error(error);
     setMtStatus("Could not save key to local storage.", true);
@@ -851,6 +860,7 @@ function clearGoogleApiKey() {
     localStorage.removeItem(GOOGLE_API_KEY_STORAGE_KEY);
     els.googleApiKeyInput.value = "";
     setMtStatus("Saved key cleared.", false);
+    updateAutoTranslateAvailability();
   } catch (error) {
     console.error(error);
     setMtStatus("Could not clear key.", true);
@@ -862,11 +872,13 @@ function loadGoogleApiKeyFromStorage() {
     const stored = localStorage.getItem(GOOGLE_API_KEY_STORAGE_KEY);
     if (!stored) {
       setMtStatus("Key not saved.", false);
+      updateAutoTranslateAvailability();
       return;
     }
 
     els.googleApiKeyInput.value = stored;
     setMtStatus("Loaded saved key from this browser.", false);
+    updateAutoTranslateAvailability();
   } catch (error) {
     console.error(error);
     setMtStatus("Could not read saved key.", true);
@@ -874,22 +886,12 @@ function loadGoogleApiKeyFromStorage() {
 }
 
 function getGoogleApiKey() {
-  const inlineValue = (els.googleApiKeyInput.value || "").trim();
-  if (inlineValue) {
-    return inlineValue;
-  }
-
-  try {
-    return (localStorage.getItem(GOOGLE_API_KEY_STORAGE_KEY) || "").trim();
-  } catch (error) {
-    console.error(error);
-    return "";
-  }
+  return getStoredGoogleApiKey();
 }
 
 function setMtStatus(message, isError) {
-  els.mtStatus.textContent = message;
-  els.mtStatus.style.color = isError ? "var(--danger)" : "var(--muted)";
+  els.localSettingsStatus.textContent = message;
+  els.localSettingsStatus.style.color = isError ? "var(--danger)" : "var(--muted)";
 }
 
 function rebuildSourceText(segments, splitMode = "sentence") {
@@ -940,7 +942,9 @@ function renderMeta() {
 
 function renderSegments() {
   els.segmentList.innerHTML = "";
-  els.autoTranslateBtn.disabled = !state.activeSegmentId;
+  const hasApiKey = Boolean(getStoredGoogleApiKey());
+  els.autoTranslateBtn.classList.toggle("hidden", !hasApiKey);
+  els.autoTranslateBtn.disabled = !state.activeSegmentId || !hasApiKey;
 
   state.project.segments.forEach((segment, idx) => {
     const item = document.createElement("li");
@@ -1161,6 +1165,29 @@ function getLanguageLabel(code) {
     return "";
   }
   return LANGUAGE_LABELS[code] || code;
+}
+
+function openLocalSettingsDialog() {
+  els.googleApiKeyInput.value = getStoredGoogleApiKey();
+  if (!els.googleApiKeyInput.value) {
+    setMtStatus("Key not saved.", false);
+  }
+  els.localSettingsDialog.showModal();
+}
+
+function updateAutoTranslateAvailability() {
+  const hasApiKey = Boolean(getStoredGoogleApiKey());
+  els.autoTranslateBtn.classList.toggle("hidden", !hasApiKey);
+  els.autoTranslateBtn.disabled = !state.activeSegmentId || !hasApiKey;
+}
+
+function getStoredGoogleApiKey() {
+  try {
+    return (localStorage.getItem(GOOGLE_API_KEY_STORAGE_KEY) || "").trim();
+  } catch (error) {
+    console.error(error);
+    return "";
+  }
 }
 
 function decodeHtmlEntities(text) {
