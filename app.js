@@ -21,6 +21,8 @@ const state = {
   lastFocusedEditable: null,
 };
 const LOCAL_STORAGE_KEY = "adagioTranslate.currentProject.v1";
+const GOOGLE_API_KEY_STORAGE_KEY = "adagioTranslate.googleApiKey.v1";
+const GOOGLE_TRANSLATE_ENDPOINT = "https://translation.googleapis.com/language/translate/v2";
 const LANGUAGE_LABELS = {
   ar: "Arabic",
   bn: "Bengali",
@@ -58,9 +60,14 @@ const els = {
   segmentList: document.getElementById("segment-list"),
   segmentCount: document.getElementById("segment-count"),
   resegmentBtn: document.getElementById("resegment-btn"),
+  autoTranslateBtn: document.getElementById("auto-translate-btn"),
 
   glossaryList: document.getElementById("glossary-list"),
   addGlossaryBtn: document.getElementById("add-glossary-btn"),
+  googleApiKeyInput: document.getElementById("google-api-key-input"),
+  saveGoogleKeyBtn: document.getElementById("save-google-key-btn"),
+  clearGoogleKeyBtn: document.getElementById("clear-google-key-btn"),
+  mtStatus: document.getElementById("mt-status"),
 
   importDocBtn: document.getElementById("import-doc-btn"),
   openProjectBtn: document.getElementById("open-project-btn"),
@@ -95,7 +102,9 @@ function init() {
   bindEditActions();
   bindDialogs();
   bindSegmentEditor();
+  bindMachineTranslate();
   loadProjectFromStorage();
+  loadGoogleApiKeyFromStorage();
   renderAll();
 }
 
@@ -134,6 +143,8 @@ function bindProjectActions() {
   els.resegmentBtn.addEventListener("click", () => {
     resegmentFromSource();
   });
+
+  els.autoTranslateBtn.addEventListener("click", translateActiveSegmentWithGoogle);
 }
 
 function bindEditActions() {
@@ -340,6 +351,11 @@ function bindDialogs() {
     pendingGlossarySelection = "";
     els.glossaryDialog.close();
   });
+}
+
+function bindMachineTranslate() {
+  els.saveGoogleKeyBtn.addEventListener("click", saveGoogleApiKey);
+  els.clearGoogleKeyBtn.addEventListener("click", clearGoogleApiKey);
 }
 
 function bindSegmentEditor() {
@@ -734,6 +750,148 @@ async function loadProjectFromFile(file) {
   }
 }
 
+async function translateActiveSegmentWithGoogle() {
+  const activeSegment = getActiveSegment();
+  if (!activeSegment) {
+    setMtStatus("Select a segment first.", true);
+    return;
+  }
+
+  const source = state.project.meta.sourceLanguage;
+  const target = state.project.meta.targetLanguage;
+  if (!source || !target) {
+    setMtStatus("Set source and target languages first.", true);
+    return;
+  }
+
+  const apiKey = getGoogleApiKey();
+  if (!apiKey) {
+    setMtStatus("Save a Google Cloud API key first.", true);
+    return;
+  }
+
+  if (!activeSegment.source.trim()) {
+    setMtStatus("Selected segment has no source text.", true);
+    return;
+  }
+
+  const previousButtonText = els.autoTranslateBtn.textContent;
+  els.autoTranslateBtn.disabled = true;
+  els.autoTranslateBtn.textContent = "Translating...";
+  setMtStatus("Requesting translation...", false);
+
+  try {
+    const translatedText = await requestGoogleTranslation({
+      apiKey,
+      source,
+      target,
+      text: activeSegment.source,
+    });
+
+    activeSegment.translation = translatedText;
+    stampUpdated();
+    renderSegments();
+    renderGlossary();
+    setMtStatus("Segment translated.", false);
+  } catch (error) {
+    console.error(error);
+    setMtStatus(error.message || "Translation failed.", true);
+  } finally {
+    els.autoTranslateBtn.disabled = false;
+    els.autoTranslateBtn.textContent = previousButtonText;
+  }
+}
+
+async function requestGoogleTranslation({ apiKey, source, target, text }) {
+  const response = await fetch(`${GOOGLE_TRANSLATE_ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      q: text,
+      source,
+      target,
+      format: "text",
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMessage = payload?.error?.message || `Google Translate API request failed (${response.status})`;
+    throw new Error(errorMessage);
+  }
+
+  const translated = payload?.data?.translations?.[0]?.translatedText;
+  if (!translated) {
+    throw new Error("Google Translate API returned no translation.");
+  }
+
+  return decodeHtmlEntities(translated);
+}
+
+function saveGoogleApiKey() {
+  const key = (els.googleApiKeyInput.value || "").trim();
+  if (!key) {
+    setMtStatus("Enter an API key first.", true);
+    return;
+  }
+
+  try {
+    localStorage.setItem(GOOGLE_API_KEY_STORAGE_KEY, key);
+    setMtStatus("Key saved locally in this browser.", false);
+  } catch (error) {
+    console.error(error);
+    setMtStatus("Could not save key to local storage.", true);
+  }
+}
+
+function clearGoogleApiKey() {
+  try {
+    localStorage.removeItem(GOOGLE_API_KEY_STORAGE_KEY);
+    els.googleApiKeyInput.value = "";
+    setMtStatus("Saved key cleared.", false);
+  } catch (error) {
+    console.error(error);
+    setMtStatus("Could not clear key.", true);
+  }
+}
+
+function loadGoogleApiKeyFromStorage() {
+  try {
+    const stored = localStorage.getItem(GOOGLE_API_KEY_STORAGE_KEY);
+    if (!stored) {
+      setMtStatus("Key not saved.", false);
+      return;
+    }
+
+    els.googleApiKeyInput.value = stored;
+    setMtStatus("Loaded saved key from this browser.", false);
+  } catch (error) {
+    console.error(error);
+    setMtStatus("Could not read saved key.", true);
+  }
+}
+
+function getGoogleApiKey() {
+  const inlineValue = (els.googleApiKeyInput.value || "").trim();
+  if (inlineValue) {
+    return inlineValue;
+  }
+
+  try {
+    return (localStorage.getItem(GOOGLE_API_KEY_STORAGE_KEY) || "").trim();
+  } catch (error) {
+    console.error(error);
+    return "";
+  }
+}
+
+function setMtStatus(message, isError) {
+  els.mtStatus.textContent = message;
+  els.mtStatus.style.color = isError ? "var(--danger)" : "var(--muted)";
+}
+
 function rebuildSourceText(segments, splitMode = "sentence") {
   const delimiter = splitMode === "paragraph" ? "\n\n" : " ";
   return (segments || [])
@@ -782,6 +940,7 @@ function renderMeta() {
 
 function renderSegments() {
   els.segmentList.innerHTML = "";
+  els.autoTranslateBtn.disabled = !state.activeSegmentId;
 
   state.project.segments.forEach((segment, idx) => {
     const item = document.createElement("li");
@@ -1002,6 +1161,12 @@ function getLanguageLabel(code) {
     return "";
   }
   return LANGUAGE_LABELS[code] || code;
+}
+
+function decodeHtmlEntities(text) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, "text/html");
+  return doc.documentElement.textContent || "";
 }
 
 function downloadTextFile(filename, content, mimeType) {

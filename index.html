@@ -61,6 +61,7 @@
         <h2>Segments</h2>
         <div class="segment-controls">
           <button id="resegment-btn">Re-Segment</button>
+          <button id="auto-translate-btn" type="button">Auto-Translate Segment</button>
           <span id="segment-count">0 segments</span>
         </div>
         <p class="sidebar-note">Click a segment to edit its translation inline.</p>
@@ -69,6 +70,16 @@
 
       <aside class="panel glossary-panel">
         <h2>Glossary</h2>
+        <div class="translation-tools">
+          <h3>Machine Translation</h3>
+          <label for="google-api-key-input">Google Cloud API Key</label>
+          <input id="google-api-key-input" type="password" placeholder="AIza..." autocomplete="off" />
+          <div class="tool-row">
+            <button id="save-google-key-btn" type="button">Save Key</button>
+            <button id="clear-google-key-btn" type="button">Clear Key</button>
+          </div>
+          <p id="mt-status" class="sidebar-note">Key not saved.</p>
+        </div>
         <button id="add-glossary-btn" type="button">Add Entry</button>
         <p class="sidebar-note">Relevant entries for selected segment appear here.</p>
         <ul id="glossary-list" class="glossary-list"></ul>
