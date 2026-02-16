@@ -30,10 +30,6 @@ const els = {
   segmentCount: document.getElementById("segment-count"),
   resegmentBtn: document.getElementById("resegment-btn"),
 
-  editorEmpty: document.getElementById("editor-empty"),
-  editorActive: document.getElementById("editor-active"),
-  sourcePreview: document.getElementById("source-preview"),
-  translationInput: document.getElementById("translation-input"),
   glossaryList: document.getElementById("glossary-list"),
   addGlossaryBtn: document.getElementById("add-glossary-btn"),
 
@@ -69,7 +65,7 @@ function init() {
   bindProjectActions();
   bindEditActions();
   bindDialogs();
-  bindEditor();
+  bindSegmentEditor();
   loadProjectFromStorage();
   renderAll();
 }
@@ -205,27 +201,53 @@ function bindDialogs() {
   });
 }
 
-function bindEditor() {
-  els.translationInput.addEventListener("input", () => {
-    const segment = getActiveSegment();
+function bindSegmentEditor() {
+  els.segmentList.addEventListener("click", (event) => {
+    const segmentItem = event.target.closest(".segment-item");
+    if (!segmentItem) {
+      return;
+    }
+
+    const segmentId = segmentItem.dataset.segmentId;
+    if (!segmentId) {
+      return;
+    }
+
+    if (state.activeSegmentId !== segmentId) {
+      selectSegment(segmentId);
+    }
+  });
+
+  els.segmentList.addEventListener("input", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLTextAreaElement) || !input.classList.contains("segment-translation-input")) {
+      return;
+    }
+
+    const segmentId = input.dataset.segmentId;
+    const segment = state.project.segments.find((item) => item.id === segmentId);
     if (!segment) {
       return;
     }
-    segment.translation = els.translationInput.value;
+
+    segment.translation = input.value;
     stampUpdated();
     renderGlossary();
   });
 
-  els.translationInput.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
-    const selected = getSelectedTextInField(els.translationInput);
-    const inferred = selected || getWordAtCaret(els.translationInput);
-    if (!inferred) {
-      alert("No word found at cursor. Select text or right-click directly on a word.");
+  els.segmentList.addEventListener("contextmenu", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLTextAreaElement) || !input.classList.contains("segment-translation-input")) {
       return;
     }
 
-    pendingGlossarySelection = inferred;
+    event.preventDefault();
+    const selected = getSelectedTextInField(input);
+    const inferred = selected || getWordAtCaret(input);
+    if (!inferred) {
+      return;
+    }
+
     openGlossaryDialog(inferred);
   });
 }
@@ -382,7 +404,6 @@ function selectSegment(segmentId) {
   state.activeSegmentId = segmentId;
   persistProjectToStorage();
   renderSegments();
-  renderEditor();
   renderGlossary();
 }
 
@@ -545,7 +566,6 @@ function serializeProject() {
 function renderAll() {
   renderMeta();
   renderSegments();
-  renderEditor();
   renderGlossary();
   applyEditorPosition();
 }
@@ -565,35 +585,45 @@ function renderSegments() {
   state.project.segments.forEach((segment, idx) => {
     const item = document.createElement("li");
     item.className = "segment-item";
+    item.dataset.segmentId = segment.id;
     if (segment.id === state.activeSegmentId) {
       item.classList.add("active");
     }
 
     const translationStatus = segment.translation.trim() ? "translated" : "pending";
-    item.textContent = `${idx + 1}. ${segment.source}`;
     item.title = `Status: ${translationStatus}`;
-    item.addEventListener("click", () => selectSegment(segment.id));
+
+    const content = document.createElement("div");
+    content.className = "segment-content";
+
+    const source = document.createElement("div");
+    source.className = "segment-source";
+    source.textContent = `${idx + 1}. ${segment.source}`;
+    content.appendChild(source);
+
+    if (segment.id === state.activeSegmentId) {
+      const editBlock = document.createElement("div");
+      editBlock.className = "segment-edit-block";
+
+      const label = document.createElement("label");
+      label.className = "segment-edit-label";
+      label.textContent = `${state.project.meta.targetLanguage || "Target"} Translation`;
+
+      const input = document.createElement("textarea");
+      input.className = "segment-translation-input";
+      input.placeholder = "Write translation here...";
+      input.value = segment.translation || "";
+      input.dataset.segmentId = segment.id;
+
+      editBlock.append(label, input);
+      content.appendChild(editBlock);
+    }
+
+    item.appendChild(content);
     els.segmentList.appendChild(item);
   });
 
   els.segmentCount.textContent = `${state.project.segments.length} segments`;
-}
-
-function renderEditor() {
-  const segment = getActiveSegment();
-
-  if (!segment) {
-    els.editorEmpty.classList.remove("hidden");
-    els.editorActive.classList.add("hidden");
-    els.sourcePreview.value = "";
-    els.translationInput.value = "";
-    return;
-  }
-
-  els.editorEmpty.classList.add("hidden");
-  els.editorActive.classList.remove("hidden");
-  els.sourcePreview.value = segment.source;
-  els.translationInput.value = segment.translation;
 }
 
 function renderGlossary() {

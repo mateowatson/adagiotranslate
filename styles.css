@@ -112,30 +112,14 @@ body {
 
 .workspace {
   display: grid;
-  grid-template-columns: 1.3fr 1.2fr 0.8fr;
+  grid-template-columns: 1.6fr 0.9fr;
   gap: 0.75rem;
   padding: 0.75rem;
   height: calc(100vh - 64px);
 }
 
 .workspace.editor-bottom {
-  grid-template-columns: 1fr 0.8fr;
-  grid-template-rows: 1fr 0.9fr;
-}
-
-.workspace.editor-bottom .segments-panel {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.workspace.editor-bottom .editor-panel {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.workspace.editor-bottom .glossary-panel {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-template-columns: 1.6fr 0.9fr;
 }
 
 .panel {
@@ -200,6 +184,36 @@ button:hover {
 .segment-item.active {
   border-color: var(--accent);
   background: var(--accent-soft);
+  cursor: default;
+}
+
+.segment-content {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.segment-source {
+  white-space: pre-wrap;
+}
+
+.workspace.editor-right .segment-item.active .segment-content {
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.workspace.editor-bottom .segment-item.active .segment-content {
+  grid-template-columns: 1fr;
+}
+
+.segment-edit-label {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.segment-translation-input {
+  min-height: 120px;
+  resize: vertical;
 }
 
 label {
@@ -223,18 +237,7 @@ textarea {
   resize: vertical;
 }
 
-#source-preview {
-  background: #f8fafc;
-}
-
-.editor-active {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.empty-state,
-.sidebar-note,
-.hint {
+.sidebar-note {
   color: var(--muted);
   margin: 0;
 }
@@ -298,13 +301,6 @@ dialog menu {
     height: auto;
   }
 
-  .workspace.editor-bottom .segments-panel,
-  .workspace.editor-bottom .editor-panel,
-  .workspace.editor-bottom .glossary-panel {
-    grid-column: auto;
-    grid-row: auto;
-  }
-
   .app-header {
     flex-wrap: wrap;
   }
@@ -312,5 +308,9 @@ dialog menu {
   .project-meta {
     width: 100%;
     margin-left: 0;
+  }
+
+  .workspace.editor-right .segment-item.active .segment-content {
+    grid-template-columns: 1fr;
   }
 }
