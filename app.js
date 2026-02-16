@@ -22,11 +22,9 @@ const state = {
 };
 const LOCAL_STORAGE_KEY = "adagioTranslate.currentProject.v1";
 const GOOGLE_API_KEY_STORAGE_KEY = "adagioTranslate.googleApiKey.v1";
-const DEEPL_API_KEY_STORAGE_KEY = "adagioTranslate.deeplApiKey.v1";
 const MYMEMORY_EMAIL_STORAGE_KEY = "adagioTranslate.myMemoryEmail.v1";
 const MT_PROVIDER_STORAGE_KEY = "adagioTranslate.mtProvider.v1";
 const GOOGLE_TRANSLATE_ENDPOINT = "https://translation.googleapis.com/language/translate/v2";
-const DEEPL_TRANSLATE_ENDPOINT = "https://api-free.deepl.com/v2/translate";
 const MYMEMORY_TRANSLATE_ENDPOINT = "https://api.mymemory.translated.net/get";
 const LANGUAGE_LABELS = {
   ar: "Arabic",
@@ -71,7 +69,6 @@ const els = {
   localSettingsBtn: document.getElementById("local-settings-btn"),
   mtProviderSelect: document.getElementById("mt-provider-select"),
   googleApiKeyInput: document.getElementById("google-api-key-input"),
-  deeplApiKeyInput: document.getElementById("deepl-api-key-input"),
   myMemoryEmailInput: document.getElementById("mymemory-email-input"),
   saveGoogleKeyBtn: document.getElementById("save-google-key-btn"),
   clearGoogleKeyBtn: document.getElementById("clear-google-key-btn"),
@@ -842,15 +839,6 @@ async function requestTranslationByProvider({ provider, source, target, text }) 
     });
   }
 
-  if (provider === "deepl") {
-    return requestDeepLTranslation({
-      apiKey: getStoredDeepLApiKey(),
-      source,
-      target,
-      text,
-    });
-  }
-
   return requestMyMemoryTranslation({
     source,
     target,
@@ -885,41 +873,6 @@ async function requestGoogleTranslation({ apiKey, source, target, text }) {
   }
 
   return decodeHtmlEntities(translated);
-}
-
-async function requestDeepLTranslation({ apiKey, source, target, text }) {
-  const sourceLang = mapSourceLanguageForDeepL(source);
-  const targetLang = mapTargetLanguageForDeepL(target);
-  if (!sourceLang || !targetLang) {
-    throw new Error("Selected language pair is not supported by DeepL.");
-  }
-
-  const params = new URLSearchParams();
-  params.set("text", text);
-  params.set("source_lang", sourceLang);
-  params.set("target_lang", targetLang);
-
-  const response = await fetch(DEEPL_TRANSLATE_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Authorization: `DeepL-Auth-Key ${apiKey}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const errorMessage = payload?.message || `DeepL API request failed (${response.status})`;
-    throw new Error(errorMessage);
-  }
-
-  const translated = payload?.translations?.[0]?.text;
-  if (!translated) {
-    throw new Error("DeepL API returned no translation.");
-  }
-
-  return translated;
 }
 
 async function requestMyMemoryTranslation({ source, target, text, email = "" }) {
@@ -1208,15 +1161,11 @@ function tokenizeMarkdownInline(input) {
 function saveMachineTranslationSettings() {
   const provider = (els.mtProviderSelect.value || "google").trim();
   const googleKey = (els.googleApiKeyInput.value || "").trim();
-  const deeplKey = (els.deeplApiKeyInput.value || "").trim();
   const myMemoryEmail = (els.myMemoryEmailInput.value || "").trim();
   try {
     localStorage.setItem(MT_PROVIDER_STORAGE_KEY, provider);
     if (googleKey) {
       localStorage.setItem(GOOGLE_API_KEY_STORAGE_KEY, googleKey);
-    }
-    if (deeplKey) {
-      localStorage.setItem(DEEPL_API_KEY_STORAGE_KEY, deeplKey);
     }
     if (myMemoryEmail) {
       localStorage.setItem(MYMEMORY_EMAIL_STORAGE_KEY, myMemoryEmail);
@@ -1234,10 +1183,8 @@ function saveMachineTranslationSettings() {
 function clearMachineTranslationKeys() {
   try {
     localStorage.removeItem(GOOGLE_API_KEY_STORAGE_KEY);
-    localStorage.removeItem(DEEPL_API_KEY_STORAGE_KEY);
     localStorage.removeItem(MYMEMORY_EMAIL_STORAGE_KEY);
     els.googleApiKeyInput.value = "";
-    els.deeplApiKeyInput.value = "";
     els.myMemoryEmailInput.value = "";
     setMtStatus("Saved API keys cleared.", false);
     renderSegments();
@@ -1251,7 +1198,6 @@ function loadMachineTranslationSettingsFromStorage() {
   try {
     els.mtProviderSelect.value = getMachineTranslationProvider();
     els.googleApiKeyInput.value = getStoredGoogleApiKey();
-    els.deeplApiKeyInput.value = getStoredDeepLApiKey();
     els.myMemoryEmailInput.value = getStoredMyMemoryEmail();
     setMtStatus("Local machine translation settings loaded.", false);
   } catch (error) {
@@ -1551,7 +1497,6 @@ function getLanguageLabel(code) {
 function openLocalSettingsDialog() {
   els.mtProviderSelect.value = getMachineTranslationProvider();
   els.googleApiKeyInput.value = getStoredGoogleApiKey();
-  els.deeplApiKeyInput.value = getStoredDeepLApiKey();
   els.myMemoryEmailInput.value = getStoredMyMemoryEmail();
   setMtStatus("These settings are local to this browser.", false);
   els.localSettingsDialog.showModal();
@@ -1560,15 +1505,6 @@ function openLocalSettingsDialog() {
 function getStoredGoogleApiKey() {
   try {
     return (localStorage.getItem(GOOGLE_API_KEY_STORAGE_KEY) || "").trim();
-  } catch (error) {
-    console.error(error);
-    return "";
-  }
-}
-
-function getStoredDeepLApiKey() {
-  try {
-    return (localStorage.getItem(DEEPL_API_KEY_STORAGE_KEY) || "").trim();
   } catch (error) {
     console.error(error);
     return "";
@@ -1587,7 +1523,7 @@ function getStoredMyMemoryEmail() {
 function getMachineTranslationProvider() {
   try {
     const stored = (localStorage.getItem(MT_PROVIDER_STORAGE_KEY) || "").trim().toLowerCase();
-    if (stored === "google" || stored === "deepl" || stored === "mymemory") {
+    if (stored === "google" || stored === "mymemory") {
       return stored;
     }
     return "google";
@@ -1601,9 +1537,6 @@ function isProviderConfigured(provider) {
   if (provider === "google") {
     return Boolean(getStoredGoogleApiKey());
   }
-  if (provider === "deepl") {
-    return Boolean(getStoredDeepLApiKey());
-  }
   return provider === "mymemory";
 }
 
@@ -1612,80 +1545,6 @@ function normalizeLangCode(code) {
     .trim()
     .toLowerCase()
     .split("-")[0];
-}
-
-function mapSourceLanguageForDeepL(code) {
-  const normalized = normalizeLangCode(code);
-  const map = {
-    ar: "AR",
-    bg: "BG",
-    cs: "CS",
-    da: "DA",
-    de: "DE",
-    el: "EL",
-    en: "EN",
-    es: "ES",
-    et: "ET",
-    fi: "FI",
-    fr: "FR",
-    hu: "HU",
-    id: "ID",
-    it: "IT",
-    ja: "JA",
-    ko: "KO",
-    lt: "LT",
-    lv: "LV",
-    nb: "NB",
-    nl: "NL",
-    pl: "PL",
-    pt: "PT",
-    ro: "RO",
-    ru: "RU",
-    sk: "SK",
-    sl: "SL",
-    sv: "SV",
-    tr: "TR",
-    uk: "UK",
-    zh: "ZH",
-  };
-  return map[normalized] || "";
-}
-
-function mapTargetLanguageForDeepL(code) {
-  const normalized = normalizeLangCode(code);
-  const map = {
-    ar: "AR",
-    bg: "BG",
-    cs: "CS",
-    da: "DA",
-    de: "DE",
-    el: "EL",
-    en: "EN",
-    es: "ES",
-    et: "ET",
-    fi: "FI",
-    fr: "FR",
-    hu: "HU",
-    id: "ID",
-    it: "IT",
-    ja: "JA",
-    ko: "KO",
-    lt: "LT",
-    lv: "LV",
-    nb: "NB",
-    nl: "NL",
-    pl: "PL",
-    pt: "PT",
-    ro: "RO",
-    ru: "RU",
-    sk: "SK",
-    sl: "SL",
-    sv: "SV",
-    tr: "TR",
-    uk: "UK",
-    zh: "ZH",
-  };
-  return map[normalized] || "";
 }
 
 function decodeHtmlEntities(text) {
