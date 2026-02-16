@@ -266,6 +266,37 @@ button:hover {
   resize: vertical;
 }
 
+.segment-inline-glossary {
+  margin-bottom: 0.3rem;
+}
+
+.segment-inline-glossary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.25rem;
+}
+
+.segment-inline-glossary-text {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.segment-inline-glossary-text:hover {
+  text-decoration: underline;
+}
+
+.segment-add-glossary-btn {
+  padding: 0.12rem 0.42rem;
+  font-size: 0.72rem;
+  border-radius: 999px;
+}
+
 label {
   font-size: 0.9rem;
   color: var(--muted);
@@ -420,5 +451,9 @@ dialog menu {
 
   .workspace.editor-right .segment-item.active .segment-content {
     grid-template-columns: 1fr;
+  }
+
+  .glossary-panel {
+    display: none;
   }
 }

@@ -143,6 +143,9 @@ const els = {
   glossaryTargetTerm: document.getElementById("glossary-target-term"),
   glossaryTranslation: document.getElementById("glossary-translation"),
   glossaryCancelBtn: document.getElementById("glossary-cancel-btn"),
+  glossaryMatchesDialog: document.getElementById("glossary-matches-dialog"),
+  glossaryMatchesList: document.getElementById("glossary-matches-list"),
+  glossaryMatchesCloseBtn: document.getElementById("glossary-matches-close-btn"),
 };
 
 let pendingGlossarySelection = "";
@@ -165,6 +168,7 @@ function init() {
   bindDialogs();
   bindSegmentEditor();
   bindLocalSettings();
+  bindResponsiveLayout();
   loadProjectFromStorage();
   loadMachineTranslationSettingsFromStorage();
   renderAll();
@@ -743,6 +747,7 @@ function bindDialogs() {
 
     pendingGlossarySelection = "";
     els.glossaryDialog.close();
+    renderSegments();
     renderGlossary();
     stampUpdated();
   });
@@ -750,6 +755,10 @@ function bindDialogs() {
   els.glossaryCancelBtn.addEventListener("click", () => {
     pendingGlossarySelection = "";
     els.glossaryDialog.close();
+  });
+
+  els.glossaryMatchesCloseBtn.addEventListener("click", () => {
+    els.glossaryMatchesDialog.close();
   });
 }
 
@@ -762,8 +771,32 @@ function bindLocalSettings() {
   });
 }
 
+function bindResponsiveLayout() {
+  const mql = window.matchMedia("(max-width: 980px)");
+  const onChange = () => renderAll();
+  if (typeof mql.addEventListener === "function") {
+    mql.addEventListener("change", onChange);
+  } else if (typeof mql.addListener === "function") {
+    mql.addListener(onChange);
+  }
+}
+
 function bindSegmentEditor() {
   els.segmentList.addEventListener("click", (event) => {
+    const addGlossaryBtn = event.target.closest(".segment-add-glossary-btn");
+    if (addGlossaryBtn) {
+      event.stopPropagation();
+      openGlossaryDialog();
+      return;
+    }
+
+    const glossaryInlineText = event.target.closest(".segment-inline-glossary-text");
+    if (glossaryInlineText) {
+      event.stopPropagation();
+      openGlossaryMatchesDialog();
+      return;
+    }
+
     const segmentItem = event.target.closest(".segment-item");
     const autoTranslateBtn = event.target.closest(".segment-auto-translate-btn");
     if (autoTranslateBtn) {
@@ -1652,6 +1685,7 @@ function renderMeta() {
 function renderSegments() {
   els.segmentList.innerHTML = "";
   const hasMachineTranslation = isProviderConfigured(getMachineTranslationProvider());
+  const compact = isCompactLayout();
 
   state.project.segments.forEach((segment, idx) => {
     const item = document.createElement("li");
@@ -1692,6 +1726,10 @@ function renderSegments() {
         editActions.appendChild(autoTranslateBtn);
       }
 
+      if (compact) {
+        editBlock.appendChild(buildInlineGlossaryBlock());
+      }
+
       const input = document.createElement("textarea");
       input.className = "segment-translation-input";
       input.placeholder = "Write translation here...";
@@ -1707,6 +1745,60 @@ function renderSegments() {
   });
 
   els.segmentCount.textContent = `${state.project.segments.length} segments`;
+}
+
+function buildInlineGlossaryBlock() {
+  const wrap = document.createElement("div");
+  wrap.className = "segment-inline-glossary";
+
+  const header = document.createElement("div");
+  header.className = "segment-inline-glossary-header";
+
+  const text = document.createElement("span");
+  text.className = "segment-inline-glossary-text";
+  text.title = "View all glossary matches";
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "segment-add-glossary-btn";
+  addBtn.textContent = "Add Entry";
+
+  const entries = getRelevantGlossaryEntries();
+  if (!entries.length) {
+    text.textContent = "Glossary: no matches";
+  } else {
+    const summary = entries.map((entry) => `${entry.targetTerm} = ${entry.translation}`).join(" | ");
+    text.textContent = `Glossary: ${summary}`;
+  }
+
+  header.append(text, addBtn);
+  wrap.append(header);
+  return wrap;
+}
+
+function openGlossaryMatchesDialog() {
+  const entries = getRelevantGlossaryEntries();
+  els.glossaryMatchesList.innerHTML = "";
+
+  if (!entries.length) {
+    const empty = document.createElement("li");
+    empty.textContent = "No glossary matches for this segment.";
+    els.glossaryMatchesList.appendChild(empty);
+    els.glossaryMatchesDialog.showModal();
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const item = document.createElement("li");
+    const term = document.createElement("strong");
+    term.textContent = entry.targetTerm;
+    const translation = document.createElement("span");
+    translation.textContent = entry.translation;
+    item.append(term, translation);
+    els.glossaryMatchesList.appendChild(item);
+  });
+
+  els.glossaryMatchesDialog.showModal();
 }
 
 function renderGlossary() {
@@ -1729,6 +1821,10 @@ function renderGlossary() {
     item.append(term, translation);
     els.glossaryList.appendChild(item);
   });
+}
+
+function isCompactLayout() {
+  return window.matchMedia("(max-width: 980px)").matches;
 }
 
 function applyEditorPosition() {
