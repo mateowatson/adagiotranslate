@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adagio Translate</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">Adagio Translate</div>
+      <nav class="menu-bar" aria-label="Application menu">
+        <details class="menu" id="menu-file">
+          <summary>File</summary>
+          <div class="menu-items" role="menu">
+            <button id="new-project-btn" role="menuitem">New Project</button>
+            <button id="import-doc-btn" role="menuitem">Import Document</button>
+            <button id="open-project-btn" role="menuitem">Open Project</button>
+            <button id="save-project-btn" role="menuitem">Save Project</button>
+            <button id="save-project-as-btn" role="menuitem">Save Project As</button>
+          </div>
+        </details>
+
+        <details class="menu" id="menu-edit">
+          <summary>Edit</summary>
+          <div class="menu-items" role="menu">
+            <button data-edit-action="undo" role="menuitem">Undo</button>
+            <button data-edit-action="redo" role="menuitem">Redo</button>
+            <button data-edit-action="cut" role="menuitem">Cut</button>
+            <button data-edit-action="copy" role="menuitem">Copy</button>
+            <button data-edit-action="paste" role="menuitem">Paste</button>
+            <button data-edit-action="selectAll" role="menuitem">Select All</button>
+          </div>
+        </details>
+
+        <details class="menu" id="menu-view">
+          <summary>View</summary>
+          <div class="menu-items" role="menu">
+            <label>
+              <span>Split Mode</span>
+              <select id="split-mode">
+                <option value="sentence">Sentence</option>
+                <option value="paragraph">Paragraph</option>
+              </select>
+            </label>
+            <label>
+              <span>Editor Position</span>
+              <select id="editor-position">
+                <option value="right">Right</option>
+                <option value="bottom">Bottom</option>
+              </select>
+            </label>
+          </div>
+        </details>
+      </nav>
+      <div class="project-meta" id="project-meta"></div>
+    </header>
+
+    <main id="workspace" class="workspace editor-right">
+      <section class="panel segments-panel">
+        <h2>Segments</h2>
+        <div class="segment-controls">
+          <button id="resegment-btn">Re-Segment</button>
+          <span id="segment-count">0 segments</span>
+        </div>
+        <ol id="segment-list" class="segment-list"></ol>
+      </section>
+
+      <section class="panel editor-panel">
+        <h2>Translation</h2>
+        <div id="editor-empty" class="empty-state">Select a segment to translate.</div>
+        <div id="editor-active" class="editor-active hidden">
+          <label for="source-preview">Source Segment</label>
+          <textarea id="source-preview" readonly></textarea>
+
+          <label for="translation-input">Target Translation</label>
+          <textarea
+            id="translation-input"
+            placeholder="Write translation here..."
+          ></textarea>
+          <p class="hint">Right-click highlighted text in this box to add glossary entries.</p>
+        </div>
+      </section>
+
+      <aside class="panel glossary-panel">
+        <h2>Glossary</h2>
+        <p class="sidebar-note">Relevant entries for selected segment appear here.</p>
+        <ul id="glossary-list" class="glossary-list"></ul>
+      </aside>
+    </main>
+
+    <input type="file" id="doc-file-input" class="hidden" />
+    <input type="file" id="project-file-input" class="hidden" accept=".adagio.json,.json" />
+
+    <dialog id="project-setup-dialog">
+      <form method="dialog" id="project-setup-form">
+        <h3>Project Setup</h3>
+        <label>
+          Source Language
+          <input id="source-language" required placeholder="e.g. Japanese" />
+        </label>
+        <label>
+          Target Language
+          <input id="target-language" required placeholder="e.g. English" />
+        </label>
+        <label>
+          Split Method
+          <select id="setup-split-mode">
+            <option value="sentence">Sentence</option>
+            <option value="paragraph">Paragraph</option>
+          </select>
+        </label>
+        <menu>
+          <button value="cancel" type="button" id="setup-cancel-btn">Cancel</button>
+          <button value="default" type="submit">Continue</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="glossary-dialog">
+      <form method="dialog" id="glossary-form">
+        <h3>Add Glossary Entry</h3>
+        <label>
+          Target Term
+          <input id="glossary-target-term" required />
+        </label>
+        <label>
+          Translation / Meaning
+          <input id="glossary-translation" required />
+        </label>
+        <menu>
+          <button value="cancel" type="button" id="glossary-cancel-btn">Cancel</button>
+          <button value="default" type="submit">Add</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
