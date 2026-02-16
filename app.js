@@ -21,6 +21,34 @@ const state = {
   lastFocusedEditable: null,
 };
 const LOCAL_STORAGE_KEY = "adagioTranslate.currentProject.v1";
+const LANGUAGE_LABELS = {
+  ar: "Arabic",
+  bn: "Bengali",
+  zh: "Chinese (Simplified)",
+  "zh-TW": "Chinese (Traditional)",
+  nl: "Dutch",
+  en: "English",
+  fr: "French",
+  de: "German",
+  el: "Greek",
+  he: "Hebrew",
+  hi: "Hindi",
+  id: "Indonesian",
+  it: "Italian",
+  ja: "Japanese",
+  ko: "Korean",
+  fa: "Persian",
+  pl: "Polish",
+  pt: "Portuguese",
+  ru: "Russian",
+  es: "Spanish",
+  sv: "Swedish",
+  th: "Thai",
+  tr: "Turkish",
+  uk: "Ukrainian",
+  ur: "Urdu",
+  vi: "Vietnamese",
+};
 
 const els = {
   workspace: document.getElementById("workspace"),
@@ -743,7 +771,9 @@ function renderAll() {
 
 function renderMeta() {
   const { name, sourceLanguage, targetLanguage } = state.project.meta;
-  const langText = sourceLanguage && targetLanguage ? `${sourceLanguage} -> ${targetLanguage}` : "No languages set";
+  const sourceLabel = getLanguageLabel(sourceLanguage);
+  const targetLabel = getLanguageLabel(targetLanguage);
+  const langText = sourceLanguage && targetLanguage ? `${sourceLabel} -> ${targetLabel}` : "No languages set";
   els.projectMeta.textContent = `${name} | ${langText}`;
 
   els.splitMode.value = state.project.meta.splitMode || "sentence";
@@ -778,7 +808,7 @@ function renderSegments() {
 
       const label = document.createElement("label");
       label.className = "segment-edit-label";
-      label.textContent = `${state.project.meta.targetLanguage || "Target"} Translation`;
+      label.textContent = `${getLanguageLabel(state.project.meta.targetLanguage) || "Target"} Translation`;
 
       const input = document.createElement("textarea");
       input.className = "segment-translation-input";
@@ -965,6 +995,13 @@ function stripExtension(filename) {
 
 function sanitizeFilename(name) {
   return name.replace(/[^a-z0-9\-_ ]/gi, "").trim().replace(/\s+/g, "-") || "adagio-project";
+}
+
+function getLanguageLabel(code) {
+  if (!code) {
+    return "";
+  }
+  return LANGUAGE_LABELS[code] || code;
 }
 
 function downloadTextFile(filename, content, mimeType) {
