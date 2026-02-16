@@ -212,7 +212,7 @@ const UI_TEXT = {
     requesting_translation: "Requesting translation...",
     segment_translated: "Segment translated.",
     translation_failed: "Translation failed.",
-    no_translated_segments: "No translated segments to export yet.",
+    no_translated_segments: "No segments to export yet.",
     docx_export_unavailable: "DOCX export library is not available. Reload and try again.",
     could_not_export_docx: "Could not export DOCX.",
     project_saved: "Project saved.",
@@ -313,7 +313,7 @@ const UI_TEXT = {
     requesting_translation: "Solicitando traducción...",
     segment_translated: "Segmento traducido.",
     translation_failed: "La traducción falló.",
-    no_translated_segments: "Aún no hay segmentos traducidos para exportar.",
+    no_translated_segments: "Aún no hay segmentos para exportar.",
     docx_export_unavailable: "La librería de exportación DOCX no está disponible. Recarga e inténtalo de nuevo.",
     could_not_export_docx: "No se pudo exportar DOCX.",
     project_saved: "Proyecto guardado.",
@@ -1504,11 +1504,12 @@ function segmentSourceText(text) {
   const splitMode = state.project.meta.splitMode;
   const rawSegments = splitMode === "paragraph" ? splitByParagraph(text) : splitBySentence(text);
 
-  state.project.segments = rawSegments.map((source, index) => ({
+  state.project.segments = rawSegments.map((segmentData, index) => ({
     id: `seg-${index + 1}`,
-    source,
+    source: segmentData.source,
     translation: "",
     index,
+    paragraphIndex: segmentData.paragraphIndex,
   }));
 
   state.activeSegmentId = state.project.segments[0]?.id || null;
@@ -1523,17 +1524,89 @@ function splitByParagraph(text) {
   return text
     .split(/\n\s*\n+/)
     .map((part) => part.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((source, paragraphIndex) => ({ source, paragraphIndex }));
 }
 
 function splitBySentence(text) {
-  const normalized = text.replace(/\n+/g, " ").trim();
-  if (!normalized) {
+  const paragraphs = text
+    .split(/\n\s*\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (!paragraphs.length) {
     return [];
   }
 
+  const segments = [];
+  paragraphs.forEach((paragraph, paragraphIndex) => {
+    if (isMarkdownListBlock(paragraph)) {
+      const listItems = splitMarkdownListItems(paragraph);
+      listItems.forEach((item) => {
+        segments.push({ source: item, paragraphIndex });
+      });
+      return;
+    }
+    const parts = splitSentencesFromText(paragraph);
+    parts.forEach((source) => {
+      segments.push({ source, paragraphIndex });
+    });
+  });
+
+  return segments;
+}
+
+function splitSentencesFromText(text) {
+  const normalized = String(text || "").replace(/\n+/g, " ").trim();
+  if (!normalized) {
+    return [];
+  }
   const parts = normalized.match(/[^.!?。！？]+[.!?。！？]?/g) || [normalized];
   return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+function isMarkdownListBlock(text) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) {
+    return false;
+  }
+  return lines.every((line) => /^([-*+]|\d+\.)\s+/.test(line));
+}
+
+function splitMarkdownListItems(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const items = [];
+  let current = [];
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    if (/^([-*+]|\d+\.)\s+/.test(trimmed)) {
+      if (current.length) {
+        items.push(current.join("\n").trim());
+      }
+      current = [trimmed];
+      return;
+    }
+
+    if (current.length) {
+      current.push(trimmed);
+    } else {
+      current = [trimmed];
+    }
+  });
+
+  if (current.length) {
+    items.push(current.join("\n").trim());
+  }
+
+  return items.filter(Boolean);
 }
 
 function resegmentFromSource() {
@@ -1808,8 +1881,8 @@ async function requestMyMemoryTranslation({ source, target, text, email = "" }) 
 }
 
 function exportTargetAsMarkdown() {
-  const translatedSegments = getTranslatedSegments();
-  if (!translatedSegments.length) {
+  const exportParagraphs = getExportParagraphs();
+  if (!exportParagraphs.length) {
     alert(t("no_translated_segments"));
     return;
   }
@@ -1826,8 +1899,7 @@ function exportTargetAsMarkdown() {
     "",
   ].join("\n");
 
-  const delimiter = state.project.meta.splitMode === "paragraph" ? "\n\n" : "\n";
-  const body = translatedSegments.map((segment) => segment.translation.trim()).join(delimiter);
+  const body = exportParagraphs.join("\n\n");
   const markdown = `${heading}${body}\n`;
 
   downloadTextFile(
@@ -1838,8 +1910,8 @@ function exportTargetAsMarkdown() {
 }
 
 async function exportTargetAsDocx() {
-  const translatedSegments = getTranslatedSegments();
-  if (!translatedSegments.length) {
+  const exportParagraphs = getExportParagraphs();
+  if (!exportParagraphs.length) {
     alert(t("no_translated_segments"));
     return;
   }
@@ -1865,11 +1937,11 @@ async function exportTargetAsDocx() {
     }),
   ];
 
-  translatedSegments.forEach((segment, index) => {
-    const segmentParagraphs = markdownToDocxParagraphs(segment.translation, Paragraph, TextRun, HeadingLevel);
+  exportParagraphs.forEach((paragraphText, index) => {
+    const segmentParagraphs = markdownToDocxParagraphs(paragraphText, Paragraph, TextRun, HeadingLevel);
     paragraphs.push(...segmentParagraphs);
 
-    if (state.project.meta.splitMode === "paragraph" && index < translatedSegments.length - 1) {
+    if (index < exportParagraphs.length - 1) {
       paragraphs.push(new Paragraph({ children: [new TextRun("")], spacing: { after: 120 } }));
     }
   });
@@ -1927,8 +1999,69 @@ async function exportTargetAsDocx() {
   }
 }
 
-function getTranslatedSegments() {
-  return state.project.segments.filter((segment) => (segment.translation || "").trim());
+function getExportSegments() {
+  return state.project.segments
+    .map((segment) => {
+      const translated = (segment.translation || "").trim();
+      const source = (segment.source || "").trim();
+      const text = translated || source;
+      return {
+        ...segment,
+        exportText: text,
+      };
+    })
+    .filter((segment) => segment.exportText);
+}
+
+function getExportParagraphs() {
+  const segments = getExportSegments();
+  if (!segments.length) {
+    return [];
+  }
+
+  const grouped = [];
+  let currentParagraphIndex = null;
+  let currentTexts = [];
+  let currentJoiner = state.project.meta.splitMode === "sentence" ? " " : "\n";
+
+  segments.forEach((segment, fallbackIndex) => {
+    const paragraphIndex = Number.isInteger(segment.paragraphIndex)
+      ? segment.paragraphIndex
+      : (state.project.meta.splitMode === "sentence" ? 0 : fallbackIndex);
+    if (currentParagraphIndex === null) {
+      currentParagraphIndex = paragraphIndex;
+      currentJoiner = resolveExportJoiner(segment);
+    }
+
+    if (paragraphIndex !== currentParagraphIndex) {
+      if (currentTexts.length) {
+        grouped.push(currentTexts.join(currentJoiner).trim());
+      }
+      currentParagraphIndex = paragraphIndex;
+      currentTexts = [];
+      currentJoiner = resolveExportJoiner(segment);
+    }
+
+    if (resolveExportJoiner(segment) === "\n") {
+      currentJoiner = "\n";
+    }
+    currentTexts.push(segment.exportText);
+  });
+
+  if (currentTexts.length) {
+    grouped.push(currentTexts.join(currentJoiner).trim());
+  }
+
+  return grouped.filter(Boolean);
+}
+
+function resolveExportJoiner(segment) {
+  if (state.project.meta.splitMode !== "sentence") {
+    return "\n";
+  }
+  const sourceLooksLikeList = isMarkdownListBlock(segment?.source || "");
+  const exportLooksLikeList = isMarkdownListBlock(segment?.exportText || "");
+  return sourceLooksLikeList || exportLooksLikeList ? "\n" : " ";
 }
 
 function markdownToDocxParagraphs(markdown, Paragraph, TextRun, HeadingLevel) {
@@ -2144,6 +2277,7 @@ function serializeProject() {
         id: segment.id,
         source: segment.source,
         translation: segment.translation,
+        paragraphIndex: segment.paragraphIndex,
       })),
       glossary: state.project.glossary,
     },
@@ -2341,6 +2475,7 @@ function persistProjectToStorage() {
           id: segment.id,
           source: segment.source,
           translation: segment.translation,
+          paragraphIndex: segment.paragraphIndex,
         })),
         glossary: state.project.glossary.map((entry) => ({
           targetTerm: entry.targetTerm,
@@ -2401,6 +2536,9 @@ function normalizeProjectData(parsed, fallbackName = "") {
       source: segment.source || "",
       translation: segment.translation || "",
       index,
+      paragraphIndex: Number.isInteger(segment.paragraphIndex)
+        ? segment.paragraphIndex
+        : (parsed.meta.splitMode === "paragraph" ? index : 0),
     })),
     glossary: parsed.glossary
       .filter((item) => item && item.targetTerm && item.translation)
