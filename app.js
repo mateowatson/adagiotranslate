@@ -1,7 +1,7 @@
 const state = {
   project: {
     meta: {
-      name: "Untitled Project",
+      name: "",
       sourceLanguage: "",
       targetLanguage: "",
       splitMode: "sentence",
@@ -191,6 +191,7 @@ const UI_TEXT = {
     mymemory_email: "MyMemory Email (optional)",
     clear_keys: "Clear Keys",
     save_settings: "Save Settings",
+    untitled_project: "Untitled Project",
     no_languages_set: "No languages set",
     target_translation: "Translation",
     write_translation_here: "Write translation here...",
@@ -216,7 +217,7 @@ const UI_TEXT = {
     empty_document_file: "The selected file has no readable text content.",
     start_new_project_confirm: "Start a new project? Unsaved changes in the current project will be lost.",
     local_settings_loaded: "Local machine translation settings loaded.",
-    local_settings_saved: "Local machine translation settings saved.",
+    local_settings_saved: "Local settings saved.",
     local_settings_save_failed: "Could not save local settings.",
     api_keys_cleared: "Saved API keys cleared.",
     api_keys_clear_failed: "Could not clear API keys.",
@@ -291,6 +292,7 @@ const UI_TEXT = {
     mymemory_email: "Correo de MyMemory (opcional)",
     clear_keys: "Borrar claves",
     save_settings: "Guardar configuración",
+    untitled_project: "Proyecto sin título",
     no_languages_set: "Idiomas no configurados",
     target_translation: "Traducción",
     write_translation_here: "Escribe la traducción aquí...",
@@ -317,7 +319,7 @@ const UI_TEXT = {
     start_new_project_confirm:
       "¿Iniciar un nuevo proyecto? Se perderán los cambios no guardados del proyecto actual.",
     local_settings_loaded: "Configuración local de traducción automática cargada.",
-    local_settings_saved: "Configuración local de traducción automática guardada.",
+    local_settings_saved: "Configuración local guardada.",
     local_settings_save_failed: "No se pudo guardar la configuración local.",
     api_keys_cleared: "Se borraron las claves guardadas.",
     api_keys_clear_failed: "No se pudieron borrar las claves.",
@@ -1333,7 +1335,7 @@ function newProject() {
 
   state.project = {
     meta: {
-      name: "Untitled Project",
+      name: "",
       sourceLanguage: "",
       targetLanguage: "",
       splitMode: "sentence",
@@ -2144,10 +2146,11 @@ function renderAll() {
 
 function renderMeta() {
   const { name, sourceLanguage, targetLanguage } = state.project.meta;
+  const displayName = name || t("untitled_project");
   const sourceLabel = getLanguageLabel(sourceLanguage);
   const targetLabel = getLanguageLabel(targetLanguage);
   const langText = sourceLanguage && targetLanguage ? `${sourceLabel} -> ${targetLabel}` : t("no_languages_set");
-  els.projectMeta.textContent = `${name} | ${langText}`;
+  els.projectMeta.textContent = `${displayName} | ${langText}`;
 
   els.splitMode.value = state.project.meta.splitMode || "sentence";
   els.editorPosition.value = state.project.meta.editorPosition || "bottom";
@@ -2348,7 +2351,7 @@ function loadProjectFromStorage() {
 
     const parsed = JSON.parse(raw);
     const storedProject = parsed && parsed.project ? parsed.project : parsed;
-    state.project = normalizeProjectData(storedProject, "Untitled Project");
+    state.project = normalizeProjectData(storedProject, "");
 
     const preferredSegmentId = parsed && typeof parsed.activeSegmentId === "string"
       ? parsed.activeSegmentId
@@ -2361,7 +2364,7 @@ function loadProjectFromStorage() {
   }
 }
 
-function normalizeProjectData(parsed, fallbackName = "Untitled Project") {
+function normalizeProjectData(parsed, fallbackName = "") {
   if (!parsed || !parsed.meta || !Array.isArray(parsed.segments) || !Array.isArray(parsed.glossary)) {
     throw new Error("Invalid project schema");
   }
