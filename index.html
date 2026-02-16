@@ -195,17 +195,34 @@
       <form method="dialog" id="local-settings-form">
         <h3>Local Settings</h3>
         <p class="sidebar-note">
-          Google Cloud API key is stored only in this browser and is not included in exported project JSON files.
+          Machine translation settings and API keys are stored only in this browser and are not included in
+          exported project JSON files.
         </p>
+        <label>
+          Translation Provider
+          <select id="mt-provider-select">
+            <option value="google">Google Translate (API key)</option>
+            <option value="deepl">DeepL (API key)</option>
+            <option value="mymemory">MyMemory (No account)</option>
+          </select>
+        </label>
         <label>
           Google Cloud API Key
           <input id="google-api-key-input" type="password" placeholder="AIza..." autocomplete="off" />
         </label>
+        <label>
+          DeepL API Key
+          <input id="deepl-api-key-input" type="password" placeholder="DeepL auth key" autocomplete="off" />
+        </label>
+        <label>
+          MyMemory Email (optional)
+          <input id="mymemory-email-input" type="email" placeholder="you@example.com" autocomplete="off" />
+        </label>
         <p id="local-settings-status" class="sidebar-note">Key not saved.</p>
         <menu>
           <button value="cancel" type="button" id="local-settings-close-btn">Close</button>
-          <button value="default" type="button" id="clear-google-key-btn">Clear Key</button>
-          <button value="default" type="button" id="save-google-key-btn">Save Key</button>
+          <button value="default" type="button" id="clear-google-key-btn">Clear Keys</button>
+          <button value="default" type="button" id="save-google-key-btn">Save Settings</button>
         </menu>
       </form>
     </dialog>

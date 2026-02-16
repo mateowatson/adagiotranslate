@@ -22,7 +22,12 @@ const state = {
 };
 const LOCAL_STORAGE_KEY = "adagioTranslate.currentProject.v1";
 const GOOGLE_API_KEY_STORAGE_KEY = "adagioTranslate.googleApiKey.v1";
+const DEEPL_API_KEY_STORAGE_KEY = "adagioTranslate.deeplApiKey.v1";
+const MYMEMORY_EMAIL_STORAGE_KEY = "adagioTranslate.myMemoryEmail.v1";
+const MT_PROVIDER_STORAGE_KEY = "adagioTranslate.mtProvider.v1";
 const GOOGLE_TRANSLATE_ENDPOINT = "https://translation.googleapis.com/language/translate/v2";
+const DEEPL_TRANSLATE_ENDPOINT = "https://api-free.deepl.com/v2/translate";
+const MYMEMORY_TRANSLATE_ENDPOINT = "https://api.mymemory.translated.net/get";
 const LANGUAGE_LABELS = {
   ar: "Arabic",
   bn: "Bengali",
@@ -64,7 +69,10 @@ const els = {
   glossaryList: document.getElementById("glossary-list"),
   addGlossaryBtn: document.getElementById("add-glossary-btn"),
   localSettingsBtn: document.getElementById("local-settings-btn"),
+  mtProviderSelect: document.getElementById("mt-provider-select"),
   googleApiKeyInput: document.getElementById("google-api-key-input"),
+  deeplApiKeyInput: document.getElementById("deepl-api-key-input"),
+  myMemoryEmailInput: document.getElementById("mymemory-email-input"),
   saveGoogleKeyBtn: document.getElementById("save-google-key-btn"),
   clearGoogleKeyBtn: document.getElementById("clear-google-key-btn"),
   localSettingsDialog: document.getElementById("local-settings-dialog"),
@@ -108,7 +116,7 @@ function init() {
   bindSegmentEditor();
   bindLocalSettings();
   loadProjectFromStorage();
-  loadGoogleApiKeyFromStorage();
+  loadMachineTranslationSettingsFromStorage();
   renderAll();
 }
 
@@ -359,8 +367,8 @@ function bindDialogs() {
 
 function bindLocalSettings() {
   els.localSettingsBtn.addEventListener("click", openLocalSettingsDialog);
-  els.saveGoogleKeyBtn.addEventListener("click", saveGoogleApiKey);
-  els.clearGoogleKeyBtn.addEventListener("click", clearGoogleApiKey);
+  els.saveGoogleKeyBtn.addEventListener("click", saveMachineTranslationSettings);
+  els.clearGoogleKeyBtn.addEventListener("click", clearMachineTranslationKeys);
   els.localSettingsCloseBtn.addEventListener("click", () => {
     els.localSettingsDialog.close();
   });
@@ -372,7 +380,7 @@ function bindSegmentEditor() {
     const autoTranslateBtn = event.target.closest(".segment-auto-translate-btn");
     if (autoTranslateBtn) {
       event.stopPropagation();
-      translateActiveSegmentWithGoogle(autoTranslateBtn);
+      translateActiveSegment(autoTranslateBtn);
       return;
     }
 
@@ -767,7 +775,7 @@ async function loadProjectFromFile(file) {
   }
 }
 
-async function translateActiveSegmentWithGoogle(triggerButton = null) {
+async function translateActiveSegment(triggerButton = null) {
   const activeSegment = getActiveSegment();
   if (!activeSegment) {
     setMtStatus("Select a segment first.", true);
@@ -781,9 +789,9 @@ async function translateActiveSegmentWithGoogle(triggerButton = null) {
     return;
   }
 
-  const apiKey = getGoogleApiKey();
-  if (!apiKey) {
-    setMtStatus("Save a Google Cloud API key first.", true);
+  const provider = getMachineTranslationProvider();
+  if (!isProviderConfigured(provider)) {
+    setMtStatus("Configure machine translation in Local Settings first.", true);
     return;
   }
 
@@ -801,8 +809,8 @@ async function translateActiveSegmentWithGoogle(triggerButton = null) {
   setMtStatus("Requesting translation...", false);
 
   try {
-    const translatedText = await requestGoogleTranslation({
-      apiKey,
+    const translatedText = await requestTranslationByProvider({
+      provider,
       source,
       target,
       text: activeSegment.source,
@@ -822,6 +830,33 @@ async function translateActiveSegmentWithGoogle(triggerButton = null) {
       buttonEl.textContent = previousButtonText;
     }
   }
+}
+
+async function requestTranslationByProvider({ provider, source, target, text }) {
+  if (provider === "google") {
+    return requestGoogleTranslation({
+      apiKey: getStoredGoogleApiKey(),
+      source,
+      target,
+      text,
+    });
+  }
+
+  if (provider === "deepl") {
+    return requestDeepLTranslation({
+      apiKey: getStoredDeepLApiKey(),
+      source,
+      target,
+      text,
+    });
+  }
+
+  return requestMyMemoryTranslation({
+    source,
+    target,
+    text,
+    email: getStoredMyMemoryEmail(),
+  });
 }
 
 async function requestGoogleTranslation({ apiKey, source, target, text }) {
@@ -847,6 +882,66 @@ async function requestGoogleTranslation({ apiKey, source, target, text }) {
   const translated = payload?.data?.translations?.[0]?.translatedText;
   if (!translated) {
     throw new Error("Google Translate API returned no translation.");
+  }
+
+  return decodeHtmlEntities(translated);
+}
+
+async function requestDeepLTranslation({ apiKey, source, target, text }) {
+  const sourceLang = mapSourceLanguageForDeepL(source);
+  const targetLang = mapTargetLanguageForDeepL(target);
+  if (!sourceLang || !targetLang) {
+    throw new Error("Selected language pair is not supported by DeepL.");
+  }
+
+  const params = new URLSearchParams();
+  params.set("text", text);
+  params.set("source_lang", sourceLang);
+  params.set("target_lang", targetLang);
+
+  const response = await fetch(DEEPL_TRANSLATE_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `DeepL-Auth-Key ${apiKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMessage = payload?.message || `DeepL API request failed (${response.status})`;
+    throw new Error(errorMessage);
+  }
+
+  const translated = payload?.translations?.[0]?.text;
+  if (!translated) {
+    throw new Error("DeepL API returned no translation.");
+  }
+
+  return translated;
+}
+
+async function requestMyMemoryTranslation({ source, target, text, email = "" }) {
+  const sourceLang = normalizeLangCode(source);
+  const targetLang = normalizeLangCode(target);
+  const params = new URLSearchParams();
+  params.set("q", text);
+  params.set("langpair", `${sourceLang}|${targetLang}`);
+  if (email.trim()) {
+    params.set("de", email.trim());
+  }
+  const url = `${MYMEMORY_TRANSLATE_ENDPOINT}?${params.toString()}`;
+
+  const response = await fetch(url, { method: "GET" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`MyMemory API request failed (${response.status})`);
+  }
+
+  const translated = payload?.responseData?.translatedText;
+  if (!translated) {
+    throw new Error("MyMemory returned no translation.");
   }
 
   return decodeHtmlEntities(translated);
@@ -1110,53 +1205,59 @@ function tokenizeMarkdownInline(input) {
   return tokens.length ? tokens : [{ text: input, bold: false, italics: false, strike: false }];
 }
 
-function saveGoogleApiKey() {
-  const key = (els.googleApiKeyInput.value || "").trim();
-  if (!key) {
-    setMtStatus("Enter an API key first.", true);
-    return;
-  }
-
+function saveMachineTranslationSettings() {
+  const provider = (els.mtProviderSelect.value || "google").trim();
+  const googleKey = (els.googleApiKeyInput.value || "").trim();
+  const deeplKey = (els.deeplApiKeyInput.value || "").trim();
+  const myMemoryEmail = (els.myMemoryEmailInput.value || "").trim();
   try {
-    localStorage.setItem(GOOGLE_API_KEY_STORAGE_KEY, key);
-    setMtStatus("Key saved locally in this browser.", false);
+    localStorage.setItem(MT_PROVIDER_STORAGE_KEY, provider);
+    if (googleKey) {
+      localStorage.setItem(GOOGLE_API_KEY_STORAGE_KEY, googleKey);
+    }
+    if (deeplKey) {
+      localStorage.setItem(DEEPL_API_KEY_STORAGE_KEY, deeplKey);
+    }
+    if (myMemoryEmail) {
+      localStorage.setItem(MYMEMORY_EMAIL_STORAGE_KEY, myMemoryEmail);
+    } else {
+      localStorage.removeItem(MYMEMORY_EMAIL_STORAGE_KEY);
+    }
+    setMtStatus("Local machine translation settings saved.", false);
     renderSegments();
   } catch (error) {
     console.error(error);
-    setMtStatus("Could not save key to local storage.", true);
+    setMtStatus("Could not save local settings.", true);
   }
 }
 
-function clearGoogleApiKey() {
+function clearMachineTranslationKeys() {
   try {
     localStorage.removeItem(GOOGLE_API_KEY_STORAGE_KEY);
+    localStorage.removeItem(DEEPL_API_KEY_STORAGE_KEY);
+    localStorage.removeItem(MYMEMORY_EMAIL_STORAGE_KEY);
     els.googleApiKeyInput.value = "";
-    setMtStatus("Saved key cleared.", false);
+    els.deeplApiKeyInput.value = "";
+    els.myMemoryEmailInput.value = "";
+    setMtStatus("Saved API keys cleared.", false);
     renderSegments();
   } catch (error) {
     console.error(error);
-    setMtStatus("Could not clear key.", true);
+    setMtStatus("Could not clear API keys.", true);
   }
 }
 
-function loadGoogleApiKeyFromStorage() {
+function loadMachineTranslationSettingsFromStorage() {
   try {
-    const stored = localStorage.getItem(GOOGLE_API_KEY_STORAGE_KEY);
-    if (!stored) {
-      setMtStatus("Key not saved.", false);
-      return;
-    }
-
-    els.googleApiKeyInput.value = stored;
-    setMtStatus("Loaded saved key from this browser.", false);
+    els.mtProviderSelect.value = getMachineTranslationProvider();
+    els.googleApiKeyInput.value = getStoredGoogleApiKey();
+    els.deeplApiKeyInput.value = getStoredDeepLApiKey();
+    els.myMemoryEmailInput.value = getStoredMyMemoryEmail();
+    setMtStatus("Local machine translation settings loaded.", false);
   } catch (error) {
     console.error(error);
-    setMtStatus("Could not read saved key.", true);
+    setMtStatus("Could not read local settings.", true);
   }
-}
-
-function getGoogleApiKey() {
-  return getStoredGoogleApiKey();
 }
 
 function setMtStatus(message, isError) {
@@ -1212,7 +1313,7 @@ function renderMeta() {
 
 function renderSegments() {
   els.segmentList.innerHTML = "";
-  const hasApiKey = Boolean(getStoredGoogleApiKey());
+  const hasMachineTranslation = isProviderConfigured(getMachineTranslationProvider());
 
   state.project.segments.forEach((segment, idx) => {
     const item = document.createElement("li");
@@ -1245,7 +1346,7 @@ function renderSegments() {
       label.textContent = `${getLanguageLabel(state.project.meta.targetLanguage) || "Target"} Translation`;
       editActions.appendChild(label);
 
-      if (hasApiKey) {
+      if (hasMachineTranslation) {
         const autoTranslateBtn = document.createElement("button");
         autoTranslateBtn.type = "button";
         autoTranslateBtn.className = "segment-auto-translate-btn";
@@ -1448,10 +1549,11 @@ function getLanguageLabel(code) {
 }
 
 function openLocalSettingsDialog() {
+  els.mtProviderSelect.value = getMachineTranslationProvider();
   els.googleApiKeyInput.value = getStoredGoogleApiKey();
-  if (!els.googleApiKeyInput.value) {
-    setMtStatus("Key not saved.", false);
-  }
+  els.deeplApiKeyInput.value = getStoredDeepLApiKey();
+  els.myMemoryEmailInput.value = getStoredMyMemoryEmail();
+  setMtStatus("These settings are local to this browser.", false);
   els.localSettingsDialog.showModal();
 }
 
@@ -1462,6 +1564,128 @@ function getStoredGoogleApiKey() {
     console.error(error);
     return "";
   }
+}
+
+function getStoredDeepLApiKey() {
+  try {
+    return (localStorage.getItem(DEEPL_API_KEY_STORAGE_KEY) || "").trim();
+  } catch (error) {
+    console.error(error);
+    return "";
+  }
+}
+
+function getStoredMyMemoryEmail() {
+  try {
+    return (localStorage.getItem(MYMEMORY_EMAIL_STORAGE_KEY) || "").trim();
+  } catch (error) {
+    console.error(error);
+    return "";
+  }
+}
+
+function getMachineTranslationProvider() {
+  try {
+    const stored = (localStorage.getItem(MT_PROVIDER_STORAGE_KEY) || "").trim().toLowerCase();
+    if (stored === "google" || stored === "deepl" || stored === "mymemory") {
+      return stored;
+    }
+    return "google";
+  } catch (error) {
+    console.error(error);
+    return "google";
+  }
+}
+
+function isProviderConfigured(provider) {
+  if (provider === "google") {
+    return Boolean(getStoredGoogleApiKey());
+  }
+  if (provider === "deepl") {
+    return Boolean(getStoredDeepLApiKey());
+  }
+  return provider === "mymemory";
+}
+
+function normalizeLangCode(code) {
+  return String(code || "")
+    .trim()
+    .toLowerCase()
+    .split("-")[0];
+}
+
+function mapSourceLanguageForDeepL(code) {
+  const normalized = normalizeLangCode(code);
+  const map = {
+    ar: "AR",
+    bg: "BG",
+    cs: "CS",
+    da: "DA",
+    de: "DE",
+    el: "EL",
+    en: "EN",
+    es: "ES",
+    et: "ET",
+    fi: "FI",
+    fr: "FR",
+    hu: "HU",
+    id: "ID",
+    it: "IT",
+    ja: "JA",
+    ko: "KO",
+    lt: "LT",
+    lv: "LV",
+    nb: "NB",
+    nl: "NL",
+    pl: "PL",
+    pt: "PT",
+    ro: "RO",
+    ru: "RU",
+    sk: "SK",
+    sl: "SL",
+    sv: "SV",
+    tr: "TR",
+    uk: "UK",
+    zh: "ZH",
+  };
+  return map[normalized] || "";
+}
+
+function mapTargetLanguageForDeepL(code) {
+  const normalized = normalizeLangCode(code);
+  const map = {
+    ar: "AR",
+    bg: "BG",
+    cs: "CS",
+    da: "DA",
+    de: "DE",
+    el: "EL",
+    en: "EN",
+    es: "ES",
+    et: "ET",
+    fi: "FI",
+    fr: "FR",
+    hu: "HU",
+    id: "ID",
+    it: "IT",
+    ja: "JA",
+    ko: "KO",
+    lt: "LT",
+    lv: "LV",
+    nb: "NB",
+    nl: "NL",
+    pl: "PL",
+    pt: "PT",
+    ro: "RO",
+    ru: "RU",
+    sk: "SK",
+    sl: "SL",
+    sv: "SV",
+    tr: "TR",
+    uk: "UK",
+    zh: "ZH",
+  };
+  return map[normalized] || "";
 }
 
 function decodeHtmlEntities(text) {
