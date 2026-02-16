@@ -1159,11 +1159,15 @@ function tokenizeMarkdownInline(input) {
 }
 
 function saveMachineTranslationSettings() {
-  const provider = (els.mtProviderSelect.value || "google").trim();
+  const provider = (els.mtProviderSelect.value || "").trim();
   const googleKey = (els.googleApiKeyInput.value || "").trim();
   const myMemoryEmail = (els.myMemoryEmailInput.value || "").trim();
   try {
-    localStorage.setItem(MT_PROVIDER_STORAGE_KEY, provider);
+    if (provider) {
+      localStorage.setItem(MT_PROVIDER_STORAGE_KEY, provider);
+    } else {
+      localStorage.removeItem(MT_PROVIDER_STORAGE_KEY);
+    }
     if (googleKey) {
       localStorage.setItem(GOOGLE_API_KEY_STORAGE_KEY, googleKey);
     }
@@ -1523,17 +1527,20 @@ function getStoredMyMemoryEmail() {
 function getMachineTranslationProvider() {
   try {
     const stored = (localStorage.getItem(MT_PROVIDER_STORAGE_KEY) || "").trim().toLowerCase();
-    if (stored === "google" || stored === "mymemory") {
+    if (stored === "google" || stored === "mymemory" || stored === "") {
       return stored;
     }
-    return "google";
+    return "";
   } catch (error) {
     console.error(error);
-    return "google";
+    return "";
   }
 }
 
 function isProviderConfigured(provider) {
+  if (!provider) {
+    return false;
+  }
   if (provider === "google") {
     return Boolean(getStoredGoogleApiKey());
   }
