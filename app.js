@@ -5,7 +5,7 @@ const state = {
       sourceLanguage: "",
       targetLanguage: "",
       splitMode: "sentence",
-      editorPosition: "right",
+      editorPosition: "bottom",
       createdAt: null,
       updatedAt: null,
     },
@@ -443,7 +443,7 @@ function newProject() {
       sourceLanguage: "",
       targetLanguage: "",
       splitMode: "sentence",
-      editorPosition: "right",
+      editorPosition: "bottom",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -1207,7 +1207,7 @@ function renderMeta() {
   els.projectMeta.textContent = `${name} | ${langText}`;
 
   els.splitMode.value = state.project.meta.splitMode || "sentence";
-  els.editorPosition.value = state.project.meta.editorPosition || "right";
+  els.editorPosition.value = state.project.meta.editorPosition || "bottom";
 }
 
 function renderSegments() {
@@ -1362,7 +1362,7 @@ function normalizeProjectData(parsed, fallbackName = "Untitled Project") {
       sourceLanguage: parsed.meta.sourceLanguage || "",
       targetLanguage: parsed.meta.targetLanguage || "",
       splitMode: parsed.meta.splitMode || "sentence",
-      editorPosition: parsed.meta.editorPosition || "right",
+      editorPosition: parsed.meta.editorPosition || "bottom",
       createdAt: parsed.meta.createdAt || new Date().toISOString(),
       updatedAt: parsed.meta.updatedAt || new Date().toISOString(),
     },
