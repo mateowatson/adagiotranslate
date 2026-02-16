@@ -75,6 +75,8 @@ const els = {
   openProjectBtn: document.getElementById("open-project-btn"),
   saveProjectBtn: document.getElementById("save-project-btn"),
   saveProjectAsBtn: document.getElementById("save-project-as-btn"),
+  exportMdBtn: document.getElementById("export-md-btn"),
+  exportDocxBtn: document.getElementById("export-docx-btn"),
   newProjectBtn: document.getElementById("new-project-btn"),
 
   docFileInput: document.getElementById("doc-file-input"),
@@ -128,6 +130,8 @@ function bindProjectActions() {
   els.openProjectBtn.addEventListener("click", openProject);
   els.saveProjectBtn.addEventListener("click", () => saveProject(false));
   els.saveProjectAsBtn.addEventListener("click", () => saveProject(true));
+  els.exportMdBtn.addEventListener("click", exportTargetAsMarkdown);
+  els.exportDocxBtn.addEventListener("click", exportTargetAsDocx);
   els.docFileInput.addEventListener("change", handleDocumentFileInput);
   els.projectFileInput.addEventListener("change", handleProjectFileInput);
 
@@ -846,6 +850,264 @@ async function requestGoogleTranslation({ apiKey, source, target, text }) {
   return decodeHtmlEntities(translated);
 }
 
+function exportTargetAsMarkdown() {
+  const translatedSegments = getTranslatedSegments();
+  if (!translatedSegments.length) {
+    alert("No translated segments to export yet.");
+    return;
+  }
+
+  const targetLanguage = getLanguageLabel(state.project.meta.targetLanguage) || state.project.meta.targetLanguage || "Unknown";
+  const sourceLanguage = getLanguageLabel(state.project.meta.sourceLanguage) || state.project.meta.sourceLanguage || "Unknown";
+  const heading = [
+    `# ${state.project.meta.name || "Adagio Translate Export"}`,
+    "",
+    `- Source language: ${sourceLanguage}`,
+    `- Target language: ${targetLanguage}`,
+    "",
+    "---",
+    "",
+  ].join("\n");
+
+  const delimiter = state.project.meta.splitMode === "paragraph" ? "\n\n" : "\n";
+  const body = translatedSegments.map((segment) => segment.translation.trim()).join(delimiter);
+  const markdown = `${heading}${body}\n`;
+
+  downloadTextFile(
+    `${sanitizeFilename(state.project.meta.name || "adagio-project")}-target.md`,
+    markdown,
+    "text/markdown"
+  );
+}
+
+async function exportTargetAsDocx() {
+  const translatedSegments = getTranslatedSegments();
+  if (!translatedSegments.length) {
+    alert("No translated segments to export yet.");
+    return;
+  }
+
+  if (!window.docx) {
+    alert("DOCX export library is not available. Reload and try again.");
+    return;
+  }
+
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel } = window.docx;
+  const projectTitle = state.project.meta.name || "Adagio Translate Export";
+  const sourceLanguage = getLanguageLabel(state.project.meta.sourceLanguage) || state.project.meta.sourceLanguage || "Unknown";
+  const targetLanguage = getLanguageLabel(state.project.meta.targetLanguage) || state.project.meta.targetLanguage || "Unknown";
+
+  const paragraphs = [
+    new Paragraph({
+      children: [new TextRun({ text: projectTitle, bold: true, size: 30 })],
+      spacing: { after: 240 },
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: `Source: ${sourceLanguage}  Target: ${targetLanguage}`, italics: true })],
+      spacing: { after: 240 },
+    }),
+  ];
+
+  translatedSegments.forEach((segment, index) => {
+    const segmentParagraphs = markdownToDocxParagraphs(segment.translation, Paragraph, TextRun, HeadingLevel);
+    paragraphs.push(...segmentParagraphs);
+
+    if (state.project.meta.splitMode === "paragraph" && index < translatedSegments.length - 1) {
+      paragraphs.push(new Paragraph({ children: [new TextRun("")], spacing: { after: 120 } }));
+    }
+  });
+
+  const doc = new Document({
+    numbering: {
+      config: [
+        {
+          reference: "adagio-ul",
+          levels: [
+            {
+              level: 0,
+              format: "bullet",
+              text: "•",
+              alignment: "left",
+              style: {
+                paragraph: {
+                  indent: { left: 720, hanging: 260 },
+                },
+              },
+            },
+          ],
+        },
+        {
+          reference: "adagio-ol",
+          levels: [
+            {
+              level: 0,
+              format: "decimal",
+              text: "%1.",
+              alignment: "left",
+              style: {
+                paragraph: {
+                  indent: { left: 720, hanging: 260 },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+    sections: [
+      {
+        children: paragraphs,
+      },
+    ],
+  });
+
+  try {
+    const blob = await Packer.toBlob(doc);
+    downloadBlob(`${sanitizeFilename(state.project.meta.name || "adagio-project")}-target.docx`, blob);
+  } catch (error) {
+    console.error(error);
+    alert("Could not export DOCX.");
+  }
+}
+
+function getTranslatedSegments() {
+  return state.project.segments.filter((segment) => (segment.translation || "").trim());
+}
+
+function markdownToDocxParagraphs(markdown, Paragraph, TextRun, HeadingLevel) {
+  const lines = String(markdown || "").split(/\r?\n/);
+  const paragraphs = [];
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trimEnd();
+    if (!line.trim()) {
+      paragraphs.push(new Paragraph({ children: [new TextRun("")], spacing: { after: 100 } }));
+      return;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const headingMap = {
+        1: HeadingLevel.HEADING_1,
+        2: HeadingLevel.HEADING_2,
+        3: HeadingLevel.HEADING_3,
+        4: HeadingLevel.HEADING_4,
+        5: HeadingLevel.HEADING_5,
+        6: HeadingLevel.HEADING_6,
+      };
+      paragraphs.push(
+        new Paragraph({
+          heading: headingMap[Math.min(level, 6)] || HeadingLevel.HEADING_1,
+          children: markdownInlineToTextRuns(headingMatch[2], TextRun),
+          spacing: { after: 160 },
+        })
+      );
+      return;
+    }
+
+    const ulMatch = line.match(/^[-*+]\s+(.+)$/);
+    if (ulMatch) {
+      paragraphs.push(
+        new Paragraph({
+          children: markdownInlineToTextRuns(ulMatch[1], TextRun),
+          numbering: { reference: "adagio-ul", level: 0 },
+          spacing: { after: 80 },
+        })
+      );
+      return;
+    }
+
+    const olMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (olMatch) {
+      paragraphs.push(
+        new Paragraph({
+          children: markdownInlineToTextRuns(olMatch[1], TextRun),
+          numbering: { reference: "adagio-ol", level: 0 },
+          spacing: { after: 80 },
+        })
+      );
+      return;
+    }
+
+    paragraphs.push(
+      new Paragraph({
+        children: markdownInlineToTextRuns(line, TextRun),
+        spacing: { after: 120 },
+      })
+    );
+  });
+
+  return paragraphs;
+}
+
+function markdownInlineToTextRuns(text, TextRun) {
+  const tokens = tokenizeMarkdownInline(String(text || ""));
+  return tokens.map((token) =>
+    new TextRun({
+      text: token.text,
+      bold: token.bold || false,
+      italics: token.italics || false,
+      strike: token.strike || false,
+    })
+  );
+}
+
+function tokenizeMarkdownInline(input) {
+  const tokens = [];
+  let i = 0;
+  let bold = false;
+  let italics = false;
+  let strike = false;
+  let buffer = "";
+
+  const flush = () => {
+    if (!buffer) {
+      return;
+    }
+    tokens.push({ text: buffer, bold, italics, strike });
+    buffer = "";
+  };
+
+  while (i < input.length) {
+    const nextTwo = input.slice(i, i + 2);
+
+    if (nextTwo === "**" || nextTwo === "__") {
+      flush();
+      bold = !bold;
+      i += 2;
+      continue;
+    }
+
+    if (nextTwo === "~~") {
+      flush();
+      strike = !strike;
+      i += 2;
+      continue;
+    }
+
+    const char = input[i];
+    if (char === "*" || char === "_") {
+      flush();
+      italics = !italics;
+      i += 1;
+      continue;
+    }
+
+    if (char === "\\" && i + 1 < input.length) {
+      buffer += input[i + 1];
+      i += 2;
+      continue;
+    }
+
+    buffer += char;
+    i += 1;
+  }
+
+  flush();
+  return tokens.length ? tokens : [{ text: input, bold: false, italics: false, strike: false }];
+}
+
 function saveGoogleApiKey() {
   const key = (els.googleApiKeyInput.value || "").trim();
   if (!key) {
@@ -1208,6 +1470,10 @@ function decodeHtmlEntities(text) {
 
 function downloadTextFile(filename, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
+  downloadBlob(filename, blob);
+}
+
+function downloadBlob(filename, blob) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;

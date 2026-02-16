@@ -28,6 +28,8 @@ Adagio Translate lets me:
 - click a segment and translate inline (no separate translation pane)
 - keep a translation project saved locally so I can refresh and continue
 - export/import project files as JSON
+- export translated target output as Markdown (`.md`)
+- export translated target output as DOCX (`.docx`)
 - add glossary entries and view relevant terms per selected segment
 - auto-translate a selected segment using Google Cloud Translation API (optional)
 
@@ -39,6 +41,8 @@ Adagio Translate lets me:
   - import document
   - open existing project JSON
   - save project JSON / save as
+  - export translated target text as Markdown (`.md`)
+  - export translated target text as DOCX (`.docx`)
 - Document import support for:
   - plain text-like formats (`.txt`, `.md`, `.csv`, etc.)
   - `.docx` with Markdown-oriented conversion
