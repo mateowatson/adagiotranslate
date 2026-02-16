@@ -63,7 +63,12 @@ const ONBOARDING_STEPS = [
     id: "glossary",
     title: "Glossary",
     body: "Add term translations here to keep wording consistent across the project.",
-    targets: ["#add-glossary-btn", ".glossary-panel"],
+    targets: [".segment-inline-glossary", ".segment-add-glossary-btn", "#add-glossary-btn", ".glossary-panel"],
+    onBeforeShow: () => {
+      if (!state.activeSegmentId && state.project.segments.length) {
+        selectSegment(state.project.segments[0].id);
+      }
+    },
   },
   {
     id: "local_settings",
@@ -796,11 +801,22 @@ function resolveOnboardingTarget(targets) {
   const selectors = Array.isArray(targets) ? targets : [targets];
   for (const selector of selectors) {
     const node = document.querySelector(selector);
-    if (node) {
+    if (node && isOnboardingTargetVisible(node)) {
       return node;
     }
   }
   return null;
+}
+
+function isOnboardingTargetVisible(node) {
+  if (!(node instanceof HTMLElement)) {
+    return false;
+  }
+  const style = window.getComputedStyle(node);
+  if (style.display === "none" || style.visibility === "hidden") {
+    return false;
+  }
+  return node.getClientRects().length > 0;
 }
 
 function refreshOnboardingPosition() {
