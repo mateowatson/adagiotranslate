@@ -139,6 +139,7 @@ const UI_TEXT = {
     menu_file: "File",
     menu_edit: "Edit",
     menu_view: "View",
+    fork_github: "Fork me on GitHub",
     local_settings: "Local Settings",
     new_project: "New Project",
     import_document: "Import Document",
@@ -240,6 +241,7 @@ const UI_TEXT = {
     menu_file: "Archivo",
     menu_edit: "Editar",
     menu_view: "Ver",
+    fork_github: "Haz un fork en GitHub",
     local_settings: "Configuración local",
     new_project: "Nuevo proyecto",
     import_document: "Importar documento",
@@ -361,6 +363,8 @@ const els = {
   workspace: document.getElementById("workspace"),
   projectMeta: document.getElementById("project-meta"),
   brandText: document.querySelector(".brand-text"),
+  forkGithubLink: document.getElementById("fork-github-link"),
+  forkGithubLabel: document.getElementById("fork-github-label"),
   splitMode: document.getElementById("split-mode"),
   editorPosition: document.getElementById("editor-position"),
   segmentList: document.getElementById("segment-list"),
@@ -501,6 +505,8 @@ function applyUiLanguage() {
   if (fileSummary) fileSummary.textContent = t("menu_file");
   if (editSummary) editSummary.textContent = t("menu_edit");
   if (viewSummary) viewSummary.textContent = t("menu_view");
+  if (els.forkGithubLabel) els.forkGithubLabel.textContent = t("fork_github");
+  if (els.forkGithubLink) els.forkGithubLink.setAttribute("aria-label", t("fork_github"));
 
   els.localSettingsBtn.textContent = t("local_settings");
   els.newProjectBtn.textContent = t("new_project");
