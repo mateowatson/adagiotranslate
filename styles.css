@@ -224,6 +224,17 @@ button:hover {
   margin-bottom: 0.2rem;
 }
 
+.segment-edit-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.segment-auto-translate-btn {
+  white-space: nowrap;
+}
+
 .segment-translation-input {
   min-height: 120px;
   resize: vertical;

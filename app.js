@@ -60,7 +60,6 @@ const els = {
   segmentList: document.getElementById("segment-list"),
   segmentCount: document.getElementById("segment-count"),
   resegmentBtn: document.getElementById("resegment-btn"),
-  autoTranslateBtn: document.getElementById("auto-translate-btn"),
 
   glossaryList: document.getElementById("glossary-list"),
   addGlossaryBtn: document.getElementById("add-glossary-btn"),
@@ -108,7 +107,6 @@ function init() {
   bindLocalSettings();
   loadProjectFromStorage();
   loadGoogleApiKeyFromStorage();
-  updateAutoTranslateAvailability();
   renderAll();
 }
 
@@ -147,8 +145,6 @@ function bindProjectActions() {
   els.resegmentBtn.addEventListener("click", () => {
     resegmentFromSource();
   });
-
-  els.autoTranslateBtn.addEventListener("click", translateActiveSegmentWithGoogle);
 }
 
 function bindEditActions() {
@@ -369,6 +365,13 @@ function bindLocalSettings() {
 function bindSegmentEditor() {
   els.segmentList.addEventListener("click", (event) => {
     const segmentItem = event.target.closest(".segment-item");
+    const autoTranslateBtn = event.target.closest(".segment-auto-translate-btn");
+    if (autoTranslateBtn) {
+      event.stopPropagation();
+      translateActiveSegmentWithGoogle(autoTranslateBtn);
+      return;
+    }
+
     if (!segmentItem) {
       return;
     }
@@ -758,7 +761,7 @@ async function loadProjectFromFile(file) {
   }
 }
 
-async function translateActiveSegmentWithGoogle() {
+async function translateActiveSegmentWithGoogle(triggerButton = null) {
   const activeSegment = getActiveSegment();
   if (!activeSegment) {
     setMtStatus("Select a segment first.", true);
@@ -783,9 +786,12 @@ async function translateActiveSegmentWithGoogle() {
     return;
   }
 
-  const previousButtonText = els.autoTranslateBtn.textContent;
-  els.autoTranslateBtn.disabled = true;
-  els.autoTranslateBtn.textContent = "Translating...";
+  const buttonEl = triggerButton instanceof HTMLButtonElement ? triggerButton : null;
+  const previousButtonText = buttonEl ? buttonEl.textContent : "";
+  if (buttonEl) {
+    buttonEl.disabled = true;
+    buttonEl.textContent = "Translating...";
+  }
   setMtStatus("Requesting translation...", false);
 
   try {
@@ -805,8 +811,10 @@ async function translateActiveSegmentWithGoogle() {
     console.error(error);
     setMtStatus(error.message || "Translation failed.", true);
   } finally {
-    els.autoTranslateBtn.disabled = false;
-    els.autoTranslateBtn.textContent = previousButtonText;
+    if (buttonEl) {
+      buttonEl.disabled = false;
+      buttonEl.textContent = previousButtonText;
+    }
   }
 }
 
@@ -848,7 +856,7 @@ function saveGoogleApiKey() {
   try {
     localStorage.setItem(GOOGLE_API_KEY_STORAGE_KEY, key);
     setMtStatus("Key saved locally in this browser.", false);
-    updateAutoTranslateAvailability();
+    renderSegments();
   } catch (error) {
     console.error(error);
     setMtStatus("Could not save key to local storage.", true);
@@ -860,7 +868,7 @@ function clearGoogleApiKey() {
     localStorage.removeItem(GOOGLE_API_KEY_STORAGE_KEY);
     els.googleApiKeyInput.value = "";
     setMtStatus("Saved key cleared.", false);
-    updateAutoTranslateAvailability();
+    renderSegments();
   } catch (error) {
     console.error(error);
     setMtStatus("Could not clear key.", true);
@@ -872,13 +880,11 @@ function loadGoogleApiKeyFromStorage() {
     const stored = localStorage.getItem(GOOGLE_API_KEY_STORAGE_KEY);
     if (!stored) {
       setMtStatus("Key not saved.", false);
-      updateAutoTranslateAvailability();
       return;
     }
 
     els.googleApiKeyInput.value = stored;
     setMtStatus("Loaded saved key from this browser.", false);
-    updateAutoTranslateAvailability();
   } catch (error) {
     console.error(error);
     setMtStatus("Could not read saved key.", true);
@@ -943,8 +949,6 @@ function renderMeta() {
 function renderSegments() {
   els.segmentList.innerHTML = "";
   const hasApiKey = Boolean(getStoredGoogleApiKey());
-  els.autoTranslateBtn.classList.toggle("hidden", !hasApiKey);
-  els.autoTranslateBtn.disabled = !state.activeSegmentId || !hasApiKey;
 
   state.project.segments.forEach((segment, idx) => {
     const item = document.createElement("li");
@@ -969,9 +973,21 @@ function renderSegments() {
       const editBlock = document.createElement("div");
       editBlock.className = "segment-edit-block";
 
+      const editActions = document.createElement("div");
+      editActions.className = "segment-edit-actions";
+
       const label = document.createElement("label");
       label.className = "segment-edit-label";
       label.textContent = `${getLanguageLabel(state.project.meta.targetLanguage) || "Target"} Translation`;
+      editActions.appendChild(label);
+
+      if (hasApiKey) {
+        const autoTranslateBtn = document.createElement("button");
+        autoTranslateBtn.type = "button";
+        autoTranslateBtn.className = "segment-auto-translate-btn";
+        autoTranslateBtn.textContent = "Auto-Translate Segment";
+        editActions.appendChild(autoTranslateBtn);
+      }
 
       const input = document.createElement("textarea");
       input.className = "segment-translation-input";
@@ -979,7 +995,7 @@ function renderSegments() {
       input.value = segment.translation || "";
       input.dataset.segmentId = segment.id;
 
-      editBlock.append(label, input);
+      editBlock.append(editActions, input);
       content.appendChild(editBlock);
     }
 
@@ -1173,12 +1189,6 @@ function openLocalSettingsDialog() {
     setMtStatus("Key not saved.", false);
   }
   els.localSettingsDialog.showModal();
-}
-
-function updateAutoTranslateAvailability() {
-  const hasApiKey = Boolean(getStoredGoogleApiKey());
-  els.autoTranslateBtn.classList.toggle("hidden", !hasApiKey);
-  els.autoTranslateBtn.disabled = !state.activeSegmentId || !hasApiKey;
 }
 
 function getStoredGoogleApiKey() {
