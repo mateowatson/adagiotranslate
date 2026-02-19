@@ -1,6 +1,31 @@
-import { html } from "../lib.js";
+import { React, html } from "../lib.js";
 
 export function Header({ t, projectMetaText, splitMode, editorPosition, onSplitModeChange, onEditorPositionChange, onAction, onEditAction }) {
+  const { useEffect, useRef, useState } = React;
+  const [openMenu, setOpenMenu] = useState(null);
+  const menuBarRef = useRef(null);
+
+  function closeMenus() {
+    setOpenMenu(null);
+  }
+
+  function onSummaryClick(menuId, event) {
+    event.preventDefault();
+    setOpenMenu((prev) => (prev === menuId ? null : menuId));
+  }
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (!menuBarRef.current) return;
+      if (!menuBarRef.current.contains(event.target)) {
+        setOpenMenu(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
+
   return html`
     <header className="app-header">
       <div className="brand" aria-label="Adagio Translate">
@@ -15,45 +40,45 @@ export function Header({ t, projectMetaText, splitMode, editorPosition, onSplitM
         <span className="brand-text">${t("app_title")}</span>
       </div>
 
-      <nav className="menu-bar" aria-label="Application menu">
-        <details className="menu" id="menu-file">
-          <summary>${t("menu_file")}</summary>
+      <nav className="menu-bar" aria-label="Application menu" ref=${menuBarRef}>
+        <details className="menu" id="menu-file" open=${openMenu === "file"}>
+          <summary onClick=${(e) => onSummaryClick("file", e)}>${t("menu_file")}</summary>
           <div className="menu-items" role="menu">
-            <button onClick=${() => onAction("new")}>${t("new_project")}</button>
-            <button onClick=${() => onAction("import")}>${t("import_document")}</button>
-            <button onClick=${() => onAction("open")}>${t("open_project")}</button>
-            <button onClick=${() => onAction("save")}>${t("save_project")}</button>
-            <button onClick=${() => onAction("saveAs")}>${t("save_project_as")}</button>
-            <button onClick=${() => onAction("exportMd")}>${t("export_md")}</button>
-            <button onClick=${() => onAction("exportDocx")}>${t("export_docx")}</button>
+            <button onClick=${() => { closeMenus(); onAction("new"); }}>${t("new_project")}</button>
+            <button onClick=${() => { closeMenus(); onAction("import"); }}>${t("import_document")}</button>
+            <button onClick=${() => { closeMenus(); onAction("open"); }}>${t("open_project")}</button>
+            <button onClick=${() => { closeMenus(); onAction("save"); }}>${t("save_project")}</button>
+            <button onClick=${() => { closeMenus(); onAction("saveAs"); }}>${t("save_project_as")}</button>
+            <button onClick=${() => { closeMenus(); onAction("exportMd"); }}>${t("export_md")}</button>
+            <button onClick=${() => { closeMenus(); onAction("exportDocx"); }}>${t("export_docx")}</button>
           </div>
         </details>
 
-        <details className="menu" id="menu-edit">
-          <summary>${t("menu_edit")}</summary>
+        <details className="menu" id="menu-edit" open=${openMenu === "edit"}>
+          <summary onClick=${(e) => onSummaryClick("edit", e)}>${t("menu_edit")}</summary>
           <div className="menu-items" role="menu">
-            <button onClick=${() => onEditAction("undo")}>${t("undo")}</button>
-            <button onClick=${() => onEditAction("redo")}>${t("redo")}</button>
-            <button onClick=${() => onEditAction("cut")}>${t("cut")}</button>
-            <button onClick=${() => onEditAction("copy")}>${t("copy")}</button>
-            <button onClick=${() => onEditAction("paste")}>${t("paste")}</button>
-            <button onClick=${() => onEditAction("selectAll")}>${t("select_all")}</button>
+            <button onClick=${() => { closeMenus(); onEditAction("undo"); }}>${t("undo")}</button>
+            <button onClick=${() => { closeMenus(); onEditAction("redo"); }}>${t("redo")}</button>
+            <button onClick=${() => { closeMenus(); onEditAction("cut"); }}>${t("cut")}</button>
+            <button onClick=${() => { closeMenus(); onEditAction("copy"); }}>${t("copy")}</button>
+            <button onClick=${() => { closeMenus(); onEditAction("paste"); }}>${t("paste")}</button>
+            <button onClick=${() => { closeMenus(); onEditAction("selectAll"); }}>${t("select_all")}</button>
           </div>
         </details>
 
-        <details className="menu" id="menu-view">
-          <summary>${t("menu_view")}</summary>
+        <details className="menu" id="menu-view" open=${openMenu === "view"}>
+          <summary onClick=${(e) => onSummaryClick("view", e)}>${t("menu_view")}</summary>
           <div className="menu-items" role="menu">
             <label>
               <span>${t("split_mode")}</span>
-              <select value=${splitMode} onChange=${(e) => onSplitModeChange(e.target.value)}>
+              <select value=${splitMode} onChange=${(e) => { onSplitModeChange(e.target.value); closeMenus(); }}>
                 <option value="sentence">${t("sentence")}</option>
                 <option value="paragraph">${t("paragraph")}</option>
               </select>
             </label>
             <label>
               <span>${t("editor_position")}</span>
-              <select value=${editorPosition} onChange=${(e) => onEditorPositionChange(e.target.value)}>
+              <select value=${editorPosition} onChange=${(e) => { onEditorPositionChange(e.target.value); closeMenus(); }}>
                 <option value="bottom">${t("bottom")}</option>
                 <option value="right">${t("right")}</option>
               </select>
@@ -61,7 +86,7 @@ export function Header({ t, projectMetaText, splitMode, editorPosition, onSplitM
           </div>
         </details>
 
-        <button id="local-settings-btn" className="menu-launcher" type="button" onClick=${() => onAction("localSettings")}>${t("local_settings")}</button>
+        <button id="local-settings-btn" className="menu-launcher" type="button" onClick=${() => { closeMenus(); onAction("localSettings"); }}>${t("local_settings")}</button>
       </nav>
 
       <a
