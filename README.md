@@ -78,13 +78,15 @@ For me, the glossary is one of the most important pieces for translation quality
 
 ## Tech Stack
 
+- React (client-side only, component-based)
 - HTML
 - CSS
-- JavaScript (client-side only)
+- JavaScript ES modules
 - Browser storage APIs (`localStorage`)
 - File System Access API where available (with browser fallbacks)
 - Mammoth.js for `.docx` conversion
 - Google Cloud Translation API (optional, user-provided key)
+- MyMemory Translation API (optional, no-account fallback)
 
 ## Notes
 
