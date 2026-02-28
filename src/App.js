@@ -93,6 +93,7 @@ export function App() {
   const [isCompact, setIsCompact] = useState(window.matchMedia("(max-width: 980px)").matches);
   const [translatingSegmentId, setTranslatingSegmentId] = useState(null);
   const [mtStatusBySegmentId, setMtStatusBySegmentId] = useState({});
+  const [projectHandle, setProjectHandle] = useState(null);
   const [onboardingActive, setOnboardingActive] = useState(false);
   const [onboardingStepIndex, setOnboardingStepIndex] = useState(0);
 
@@ -318,28 +319,51 @@ export function App() {
     setMatchesModalOpen(true);
   }
 
-  function saveProjectFile(forceNew = false) {
+  async function saveProjectFile(forceNew = false) {
     const payload = serializeProject(project);
 
     if (window.showSaveFilePicker) {
-      window.showSaveFilePicker({
-        suggestedName: `${sanitizeFilename(project.meta.name || "adagio-project")}.adagio.json`,
-        types: [{ description: "Adagio Translate Project", accept: { "application/json": [".adagio.json"] } }],
-      }).then(async (handle) => {
+      try {
+        let handle = projectHandle;
+        if (!handle || forceNew) {
+          handle = await window.showSaveFilePicker({
+            suggestedName: `${sanitizeFilename(project.meta.name || "adagio-project")}.adagio.json`,
+            types: [{ description: "Adagio Translate Project", accept: { "application/json": [".adagio.json"] } }],
+          });
+          setProjectHandle(handle);
+        }
         const writable = await handle.createWritable();
         await writable.write(payload);
         await writable.close();
         alert(t("project_saved"));
-      }).catch(() => {
+      } catch (error) {
         downloadTextFile(`${sanitizeFilename(project.meta.name || "adagio-project")}.adagio.json`, payload, "application/json");
-      });
+      }
       return;
     }
 
     downloadTextFile(`${sanitizeFilename(project.meta.name || "adagio-project")}.adagio.json`, payload, "application/json");
   }
 
-  function openProjectPicker() {
+  async function openProjectPicker() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          multiple: false,
+          types: [{ description: "Adagio Translate Project", accept: { "application/json": [".adagio.json", ".json"] } }],
+        });
+        const file = await handle.getFile();
+        await loadProjectFromFile(file);
+        setProjectHandle(handle);
+        return;
+      } catch (error) {
+        if (error && error.name !== "AbortError") {
+          console.error(error);
+        } else {
+          return;
+        }
+      }
+    }
     projectFileInputRef.current?.click();
   }
 
@@ -350,6 +374,7 @@ export function App() {
       const normalized = normalizeProjectData(parsed, stripExtension(file.name));
       setProject(normalized);
       setActiveSegmentId(normalized.segments[0]?.id || null);
+      setProjectHandle(null);
     } catch (error) {
       console.error(error);
       alert(t("invalid_project_file"));
