@@ -76,7 +76,7 @@ export function App() {
     googleApiKey: bootSettings.googleApiKey || "",
     myMemoryEmail: bootSettings.myMemoryEmail || "",
   });
-  const [localSettingsStatus, setLocalSettingsStatus] = useState("");
+  const [toasts, setToasts] = useState([]);
 
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const [setupValues, setSetupValues] = useState({ sourceLanguage: "", targetLanguage: "", splitMode: "sentence" });
@@ -461,7 +461,7 @@ export function App() {
   function applyLocalSettings() {
     saveLocalSettings(localSettings);
     setUiLanguage(localSettings.uiLanguage === "es" ? "es" : "en");
-    setLocalSettingsStatus(t("local_settings_saved"));
+    pushToast(t("local_settings_saved"), "success");
     setLocalSettingsOpen(false);
   }
 
@@ -474,9 +474,17 @@ export function App() {
     if (action === "exportMd") exportMarkdown();
     if (action === "exportDocx") exportDocx();
     if (action === "localSettings") {
-      setLocalSettingsStatus(t("local_settings_loaded"));
+      pushToast(t("local_settings_loaded"), "info");
       setLocalSettingsOpen(true);
     }
+  }
+
+  function pushToast(message, tone = "info") {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setToasts((prev) => [...prev, { id, message, tone }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 2800);
   }
 
   useEffect(() => {
@@ -611,7 +619,7 @@ export function App() {
         t=${t}
         isOpen=${localSettingsOpen}
         values=${localSettings}
-        status=${localSettingsStatus}
+        status=""
         onChange=${setLocalSettings}
         onClose=${() => setLocalSettingsOpen(false)}
         onClearKeys=${() => {
@@ -620,6 +628,12 @@ export function App() {
         }}
         onSave=${applyLocalSettings}
       />
+
+      <div className="toast-stack" aria-live="polite">
+        ${toasts.map((toast) => html`
+          <div className=${`toast toast-${toast.tone}`} key=${toast.id}>${toast.message}</div>
+        `)}
+      </div>
 
       <${OnboardingTour}
         t=${t}

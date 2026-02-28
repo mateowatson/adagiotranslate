@@ -1,6 +1,6 @@
 import { html } from "../../lib.js";
 
-export function LocalSettingsDialog({ t, isOpen, values, status, onChange, onClose, onClearKeys, onSave }) {
+export function LocalSettingsDialog({ t, isOpen, values, onChange, onClose, onClearKeys, onSave }) {
   if (!isOpen) return null;
   return html`
     <div className="modal-overlay" onClick=${onClose}>
@@ -31,7 +31,7 @@ export function LocalSettingsDialog({ t, isOpen, values, status, onChange, onClo
             ${t("mymemory_email")}
             <input type="email" value=${values.myMemoryEmail} placeholder="you@example.com" autoComplete="off" onInput=${(e) => onChange({ ...values, myMemoryEmail: e.target.value })} />
           </label>
-          <p className="sidebar-note">${status || t("local_settings_local_notice")}</p>
+        <p className="sidebar-note">${t("local_settings_local_notice")}</p>
           <menu>
             <button type="button" onClick=${onClose}>${t("close")}</button>
             <button type="button" onClick=${onClearKeys}>${t("clear_keys")}</button>
