@@ -92,7 +92,6 @@ export function App() {
 
   const [isCompact, setIsCompact] = useState(window.matchMedia("(max-width: 980px)").matches);
   const [translatingSegmentId, setTranslatingSegmentId] = useState(null);
-  const [mtStatusBySegmentId, setMtStatusBySegmentId] = useState({});
   const [projectHandle, setProjectHandle] = useState(null);
   const [showAllGlossary, setShowAllGlossary] = useState(false);
   const [onboardingActive, setOnboardingActive] = useState(false);
@@ -404,24 +403,23 @@ export function App() {
   async function autoTranslateSegment(segmentId) {
     const segment = project.segments.find((item) => item.id === segmentId);
     if (!segment) {
-      setMtStatusBySegmentId((prev) => ({ ...prev, [segmentId]: t("select_segment_first") }));
+      alert(t("select_segment_first"));
       return;
     }
     if (!project.meta.sourceLanguage || !project.meta.targetLanguage) {
-      setMtStatusBySegmentId((prev) => ({ ...prev, [segmentId]: t("set_languages_first") }));
+      alert(t("set_languages_first"));
       return;
     }
     if (!isProviderConfigured(localSettings.mtProvider, localSettings.googleApiKey)) {
-      setMtStatusBySegmentId((prev) => ({ ...prev, [segmentId]: t("configure_mt_first") }));
+      alert(t("configure_mt_first"));
       return;
     }
     if (!segment.source.trim()) {
-      setMtStatusBySegmentId((prev) => ({ ...prev, [segmentId]: t("selected_segment_no_source") }));
+      alert(t("selected_segment_no_source"));
       return;
     }
 
     setTranslatingSegmentId(segmentId);
-    setMtStatusBySegmentId((prev) => ({ ...prev, [segmentId]: t("requesting_translation") }));
 
     try {
       const translated = await requestTranslationByProvider({
@@ -438,9 +436,8 @@ export function App() {
         if (target) target.translation = translated;
         stampUpdated(next);
       });
-      setMtStatusBySegmentId((prev) => ({ ...prev, [segmentId]: t("segment_translated") }));
     } catch (error) {
-      setMtStatusBySegmentId((prev) => ({ ...prev, [segmentId]: error.message || t("translation_failed") }));
+      alert(error.message || t("translation_failed"));
     } finally {
       setTranslatingSegmentId(null);
     }
@@ -532,7 +529,6 @@ export function App() {
           onAddGlossary=${openGlossaryDialog}
           onViewGlossaryMatches=${openGlossaryMatches}
           translatingSegmentId=${translatingSegmentId}
-          mtStatusBySegmentId=${mtStatusBySegmentId}
         />
 
         ${!isCompact ? html`
