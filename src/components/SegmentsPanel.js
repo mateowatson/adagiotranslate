@@ -1,4 +1,5 @@
 import { html } from "../lib.js";
+import { renderMarkdownToHtml } from "../utils/markdown.js";
 
 function SegmentItem({
   t,
@@ -29,7 +30,19 @@ function SegmentItem({
   return html`
     <li className=${`segment-item ${isActive ? "active" : ""}`} data-segment-id=${segment.id} title=${`${t("status_prefix")}: ${translationStatus}`} onClick=${() => onSelect(segment.id)}>
       <div className="segment-content">
-        <div className="segment-source">${idx + 1}. ${displayText}</div>
+        ${isActive
+          ? html`
+            <div className="segment-source">
+              <span className="segment-number">${idx + 1}.</span>
+              <div className="segment-text">${displayText}</div>
+            </div>
+          `
+          : html`
+            <div className="segment-source">
+              <span className="segment-number">${idx + 1}.</span>
+              <div className="segment-text" dangerouslySetInnerHTML=${{ __html: renderMarkdownToHtml(displayText) }}></div>
+            </div>
+          `}
 
         ${isActive ? html`
           <div className="segment-edit-block" onClick=${(e) => e.stopPropagation()}>

@@ -244,6 +244,11 @@ button:hover {
   min-width: 0;
 }
 
+.segment-content {
+  margin: 0;
+  padding: 0;
+}
+
 .segment-item:hover {
   border-color: var(--accent);
 }
@@ -260,15 +265,94 @@ button:hover {
   min-width: 0;
 }
 
+.segment-item .segment-content > *:last-child {
+  margin-bottom: 0;
+}
+
 .segment-edit-block {
   min-width: 0;
 }
 
 .segment-source {
-  white-space: pre-wrap;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: baseline;
+  white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
+
+.segment-number {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.segment-text p,
+.segment-text h1,
+.segment-text h2,
+.segment-text h3,
+.segment-text h4,
+.segment-text h5,
+.segment-text h6,
+.segment-text ul,
+.segment-text ol,
+.segment-text blockquote {
+  margin: 0;
+}
+
+.segment-text > p {
+  display: inline;
+}
+
+.segment-text > p + p {
+  display: block;
+  margin-top: 0.35rem;
+}
+
+.segment-text ul,
+.segment-text ol {
+  padding-left: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.segment-text li {
+  margin: 0;
+  padding: 0;
+  position: relative;
+  padding-left: 1.1rem;
+}
+
+.segment-text ul > li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.segment-text ol {
+  counter-reset: segment-ol;
+}
+
+.segment-text ol > li::before {
+  counter-increment: segment-ol;
+  content: counter(segment-ol) ".";
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.segment-text {
+  display: block;
+  white-space: normal;
+}
+
+.segment-item.active .segment-source {
+  white-space: pre-wrap;
+}
+
+ 
 
 .workspace.editor-right .segment-item.active .segment-content {
   grid-template-columns: 1fr 1fr;
