@@ -50,8 +50,8 @@ export function splitSentencesFromText(text) {
     return key;
   });
 
-  const parts = protectedText.match(/[^.!?。！？]+[.!?。！？]?/g) || [protectedText];
-  return parts
+  const parts = protectedText.match(/[^.!?。！？]+[.!?。！？]?(?:["'”’»)\]]+)?/g) || [protectedText];
+  const cleaned = parts
     .map((part) => part.trim())
     .filter(Boolean)
     .map((part) => {
@@ -61,6 +61,17 @@ export function splitSentencesFromText(text) {
       });
       return restored;
     });
+  const merged = [];
+  cleaned.forEach((part) => {
+    if (!part || /^[\"'“”‘’«»]+$/.test(part)) {
+      if (merged.length) {
+        merged[merged.length - 1] += part ? ` ${part}` : "";
+      }
+      return;
+    }
+    merged.push(part);
+  });
+  return merged;
 }
 
 export function isMarkdownListBlock(text) {
