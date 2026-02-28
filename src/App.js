@@ -462,6 +462,7 @@ export function App() {
     saveLocalSettings(localSettings);
     setUiLanguage(localSettings.uiLanguage === "es" ? "es" : "en");
     setLocalSettingsStatus(t("local_settings_saved"));
+    setLocalSettingsOpen(false);
   }
 
   function handleHeaderAction(action) {
