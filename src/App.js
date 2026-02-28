@@ -214,18 +214,6 @@ export function App() {
     onboardingSnapshotRef.current = null;
   }
 
-  function resegmentFromSource(nextSplitMode = project.meta.splitMode) {
-    const text = project.sourceText || "";
-    if (!text.trim()) return;
-    const nextSegments = segmentSourceText(text, nextSplitMode);
-    setProjectWith((next) => {
-      next.meta.splitMode = nextSplitMode;
-      next.segments = nextSegments;
-      if (!next.meta.createdAt) next.meta.createdAt = new Date().toISOString();
-      stampUpdated(next);
-    });
-    setActiveSegmentId(nextSegments[0]?.id || null);
-  }
 
   function newProject() {
     if (!confirm(t("start_new_project_confirm"))) return;
@@ -514,12 +502,7 @@ export function App() {
       <${Header}
         t=${t}
         projectMetaText=${projectMetaText}
-        splitMode=${project.meta.splitMode}
         editorPosition=${project.meta.editorPosition}
-        onSplitModeChange=${(value) => {
-          setProjectWith((next) => { next.meta.splitMode = value; });
-          resegmentFromSource(value);
-        }}
         onEditorPositionChange=${(value) => {
           setProjectWith((next) => {
             next.meta.editorPosition = value;
@@ -543,7 +526,6 @@ export function App() {
           compact=${isCompact}
           isMtConfigured=${isProviderConfigured(localSettings.mtProvider, localSettings.googleApiKey)}
           getGlossaryEntriesForSegment=${getGlossaryEntriesForSegment}
-          onResegment=${() => resegmentFromSource(project.meta.splitMode)}
           onSelectSegment=${(id) => setActiveSegmentId(id)}
           onChangeTranslation=${updateSegmentTranslation}
           onAutoTranslate=${autoTranslateSegment}

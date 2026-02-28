@@ -122,7 +122,6 @@ export function SegmentsPanel({
   compact,
   isMtConfigured,
   getGlossaryEntriesForSegment,
-  onResegment,
   onSelectSegment,
   onChangeTranslation,
   onAutoTranslate,
@@ -135,7 +134,6 @@ export function SegmentsPanel({
     <section className="panel segments-panel">
       <h2>${t("segments")}</h2>
       <div className="segment-controls">
-        <button onClick=${onResegment}>${t("resegment")}</button>
         <span>${segmentCountText}</span>
       </div>
       <p className="sidebar-note">${t("segments_help")}</p>

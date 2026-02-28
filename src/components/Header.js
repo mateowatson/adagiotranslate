@@ -1,6 +1,6 @@
 import { React, html } from "../lib.js";
 
-export function Header({ t, projectMetaText, splitMode, editorPosition, onSplitModeChange, onEditorPositionChange, onAction, onEditAction }) {
+export function Header({ t, projectMetaText, editorPosition, onEditorPositionChange, onAction, onEditAction }) {
   const { useEffect, useRef, useState } = React;
   const [openMenu, setOpenMenu] = useState(null);
   const menuBarRef = useRef(null);
@@ -69,13 +69,6 @@ export function Header({ t, projectMetaText, splitMode, editorPosition, onSplitM
         <details className="menu" id="menu-view" open=${openMenu === "view"}>
           <summary onClick=${(e) => onSummaryClick("view", e)}>${t("menu_view")}</summary>
           <div className="menu-items" role="menu">
-            <label>
-              <span>${t("split_mode")}</span>
-              <select value=${splitMode} onChange=${(e) => { onSplitModeChange(e.target.value); closeMenus(); }}>
-                <option value="sentence">${t("sentence")}</option>
-                <option value="paragraph">${t("paragraph")}</option>
-              </select>
-            </label>
             <label>
               <span>${t("editor_position")}</span>
               <select value=${editorPosition} onChange=${(e) => { onEditorPositionChange(e.target.value); closeMenus(); }}>
