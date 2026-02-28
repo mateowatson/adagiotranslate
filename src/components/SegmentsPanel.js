@@ -22,10 +22,14 @@ function SegmentItem({
     ? glossaryEntries.map((entry) => `${entry.targetTerm} = ${entry.translation}`).join(" | ")
     : `${t("glossary_summary_prefix")}: ${t("glossary_no_matches").toLowerCase()}`;
 
+  const displayText = isActive
+    ? segment.source
+    : ((segment.translation || "").trim() ? segment.translation : segment.source);
+
   return html`
     <li className=${`segment-item ${isActive ? "active" : ""}`} data-segment-id=${segment.id} title=${`${t("status_prefix")}: ${translationStatus}`} onClick=${() => onSelect(segment.id)}>
       <div className="segment-content">
-        <div className="segment-source">${idx + 1}. ${segment.source}</div>
+        <div className="segment-source">${idx + 1}. ${displayText}</div>
 
         ${isActive ? html`
           <div className="segment-edit-block" onClick=${(e) => e.stopPropagation()}>
