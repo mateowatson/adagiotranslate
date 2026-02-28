@@ -1,6 +1,23 @@
 import { html } from "../lib.js";
 import { renderMarkdownToHtml } from "../utils/markdown.js";
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderPlainWithLinks(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(/\bhttps?:\/\/[^\s)]+/gi, (match) => {
+    const safeUrl = match.replace(/"/g, "%22");
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+  });
+}
+
 function SegmentItem({
   t,
   segment,
@@ -34,7 +51,7 @@ function SegmentItem({
           ? html`
             <div className="segment-source">
               <span className="segment-number">${idx + 1}.</span>
-              <div className="segment-text">${displayText}</div>
+              <div className="segment-text" dangerouslySetInnerHTML=${{ __html: renderPlainWithLinks(displayText) }}></div>
             </div>
           `
           : html`

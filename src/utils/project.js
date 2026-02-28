@@ -42,8 +42,25 @@ export function splitSentencesFromText(text) {
   if (!normalized) {
     return [];
   }
-  const parts = normalized.match(/[^.!?。！？]+[.!?。！？]?/g) || [normalized];
-  return parts.map((part) => part.trim()).filter(Boolean);
+  const urlMap = new Map();
+  let counter = 0;
+  const protectedText = normalized.replace(/\bhttps?:\/\/[^\s)]+/gi, (match) => {
+    const key = `__URL_${counter++}__`;
+    urlMap.set(key, match);
+    return key;
+  });
+
+  const parts = protectedText.match(/[^.!?。！？]+[.!?。！？]?/g) || [protectedText];
+  return parts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      let restored = part;
+      urlMap.forEach((value, key) => {
+        restored = restored.replace(key, value);
+      });
+      return restored;
+    });
 }
 
 export function isMarkdownListBlock(text) {
