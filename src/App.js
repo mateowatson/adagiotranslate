@@ -94,6 +94,7 @@ export function App() {
   const [translatingSegmentId, setTranslatingSegmentId] = useState(null);
   const [mtStatusBySegmentId, setMtStatusBySegmentId] = useState({});
   const [projectHandle, setProjectHandle] = useState(null);
+  const [showAllGlossary, setShowAllGlossary] = useState(false);
   const [onboardingActive, setOnboardingActive] = useState(false);
   const [onboardingStepIndex, setOnboardingStepIndex] = useState(0);
 
@@ -491,7 +492,10 @@ export function App() {
     }
   }, [onboardingActive, onboardingStepIndex, activeSegmentId, project.segments]);
 
-  const currentMatchEntries = matchesModalOpen ? getGlossaryEntriesForSegment(matchesSegmentId || activeSegmentId) : [];
+  const modalEntries = showAllGlossary
+    ? project.glossary
+    : getGlossaryEntriesForSegment(matchesSegmentId || activeSegmentId);
+  const desktopGlossaryEntries = showAllGlossary ? project.glossary : relevantGlossary;
   const onboardingStep = onboardingActive ? ONBOARDING_STEPS[onboardingStepIndex] : null;
   const onboardingCopyTable = uiLanguage === "es" ? ONBOARDING_COPY.es : ONBOARDING_COPY.en;
   const onboardingCopy = onboardingStep ? onboardingCopyTable[onboardingStep.id] || ONBOARDING_COPY.en[onboardingStep.id] : null;
@@ -543,7 +547,9 @@ export function App() {
         ${!isCompact ? html`
           <${GlossaryPanel}
             t=${t}
-            entries=${relevantGlossary}
+            entries=${desktopGlossaryEntries}
+            showAll=${showAllGlossary}
+            onToggleShowAll=${() => setShowAllGlossary((prev) => !prev)}
             onAddEntry=${() => openGlossaryDialog(activeSegmentId)}
           />
         ` : null}
@@ -594,7 +600,9 @@ export function App() {
       <${GlossaryMatchesDialog}
         t=${t}
         isOpen=${matchesModalOpen}
-        entries=${currentMatchEntries}
+        entries=${modalEntries}
+        showAll=${showAllGlossary}
+        onToggleShowAll=${() => setShowAllGlossary((prev) => !prev)}
         onClose=${() => setMatchesModalOpen(false)}
       />
 

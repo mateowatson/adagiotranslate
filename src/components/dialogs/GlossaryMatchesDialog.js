@@ -1,12 +1,17 @@
 import { html } from "../../lib.js";
 
-export function GlossaryMatchesDialog({ t, isOpen, entries, onClose }) {
+export function GlossaryMatchesDialog({ t, isOpen, entries, showAll, onToggleShowAll, onClose }) {
   if (!isOpen) return null;
   return html`
     <div className="modal-overlay" onClick=${onClose}>
       <dialog open onClick=${(e) => e.stopPropagation()}>
         <form method="dialog">
           <h3>${t("glossary_matches")}</h3>
+          ${onToggleShowAll ? html`
+            <button type="button" className="glossary-toggle-btn" onClick=${onToggleShowAll}>
+              ${showAll ? t("glossary_show_relevant") : t("glossary_show_all")}
+            </button>
+          ` : null}
           <ul className="glossary-list">
             ${entries.length
               ? entries.map((entry) => html`<li key=${entry.targetTerm}><strong>${entry.targetTerm}</strong><span>${entry.translation}</span></li>`)

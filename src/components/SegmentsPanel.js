@@ -27,6 +27,8 @@ function SegmentItem({
   showAutoTranslate,
   compact,
   glossaryEntries,
+  showAllGlossary,
+  onToggleShowAllGlossary,
   onSelect,
   onChangeTranslation,
   onAutoTranslate,
@@ -48,6 +50,9 @@ function SegmentItem({
   const translationBlockquote = translationText ? /^\s*>\s?/.test(translationText) : null;
   const displayBlockquote = translationBlockquote !== null ? translationBlockquote : Boolean(segment.blockquote);
   const blockquoteClass = displayBlockquote ? "segment-blockquote" : "";
+  const summaryEntries = glossaryEntries.length
+    ? glossaryEntries.map((entry) => `${entry.targetTerm} = ${entry.translation}`).join(" | ")
+    : `${t("glossary_summary_prefix")}: ${t("glossary_no_matches").toLowerCase()}`;
 
   return html`
     <li className=${`segment-item ${blockquoteClass} ${isActive ? "active" : ""}`} data-segment-id=${segment.id} title=${`${t("status_prefix")}: ${translationStatus}`} onClick=${() => onSelect(segment.id)}>
@@ -88,7 +93,7 @@ function SegmentItem({
               <div className="segment-inline-glossary">
                 <div className="segment-inline-glossary-header">
                   <span className="segment-inline-glossary-text" title=${t("view_all_glossary_matches")} onClick=${onViewGlossaryMatches}>
-                    ${glossaryEntries.length ? `${t("glossary_summary_prefix")}: ${summary}` : summary}
+                    ${glossaryEntries.length ? `${t("glossary_summary_prefix")}: ${summaryEntries}` : summaryEntries}
                   </span>
                   <button type="button" className="segment-add-glossary-btn" onClick=${onAddGlossary}>${t("add_entry")}</button>
                 </div>

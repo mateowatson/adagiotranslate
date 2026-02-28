@@ -471,6 +471,10 @@ textarea {
   margin-bottom: 0.5rem;
 }
 
+.glossary-toggle-btn {
+  margin-bottom: 0.5rem;
+}
+
 .glossary-list li {
   border: 1px solid var(--line);
   border-radius: 8px;
