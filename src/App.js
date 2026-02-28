@@ -523,7 +523,10 @@ export function App() {
           segments=${project.segments}
           activeSegmentId=${activeSegmentId}
           targetLanguageLabel=${targetLabel}
-          segmentCountText=${t("segment_count", { count: project.segments.length })}
+          segmentCountText=${t("segment_count", {
+            translated: project.segments.filter((segment) => (segment.translation || "").trim()).length,
+            count: project.segments.length,
+          })}
           compact=${isCompact}
           isMtConfigured=${isProviderConfigured(localSettings.mtProvider, localSettings.googleApiKey)}
           getGlossaryEntriesForSegment=${getGlossaryEntriesForSegment}
