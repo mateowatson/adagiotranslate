@@ -34,7 +34,11 @@ export function splitByParagraph(text) {
     .split(/\n\s*\n+/)
     .map((part) => part.trim())
     .filter(Boolean)
-    .map((source, paragraphIndex) => ({ source, paragraphIndex }));
+    .map((source, paragraphIndex) => ({
+      source,
+      paragraphIndex,
+      blockquote: isBlockquoteParagraph(source),
+    }));
 }
 
 export function splitSentencesFromText(text) {
@@ -130,16 +134,41 @@ export function splitBySentence(text) {
 
   const segments = [];
   paragraphs.forEach((paragraph, paragraphIndex) => {
+    const isBlockquote = isBlockquoteParagraph(paragraph);
+    const normalizedParagraph = isBlockquote ? stripBlockquoteMarkers(paragraph) : paragraph;
     if (isMarkdownListBlock(paragraph)) {
       const listItems = splitMarkdownListItems(paragraph);
-      listItems.forEach((item) => segments.push({ source: item, paragraphIndex }));
+      listItems.forEach((item) => segments.push({
+        source: item,
+        paragraphIndex,
+        blockquote: isBlockquote,
+      }));
       return;
     }
-    const parts = splitSentencesFromText(paragraph);
-    parts.forEach((source) => segments.push({ source, paragraphIndex }));
+    const parts = splitSentencesFromText(normalizedParagraph);
+    parts.forEach((source) => segments.push({
+      source: isBlockquote ? `> ${source}` : source,
+      paragraphIndex,
+      blockquote: isBlockquote,
+    }));
   });
 
   return segments;
+}
+
+function isBlockquoteParagraph(text) {
+  const lines = String(text || "").split(/\r?\n/).map((line) => line.trim());
+  const contentLines = lines.filter((line) => line.length > 0);
+  if (!contentLines.length) return false;
+  return contentLines.every((line) => line.startsWith(">"));
+}
+
+function stripBlockquoteMarkers(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*>\s?/, ""))
+    .join(" ")
+    .trim();
 }
 
 export function segmentSourceText(text, splitMode = "sentence") {
@@ -150,6 +179,7 @@ export function segmentSourceText(text, splitMode = "sentence") {
     translation: "",
     index,
     paragraphIndex: segmentData.paragraphIndex,
+    blockquote: Boolean(segmentData.blockquote),
   }));
 }
 
@@ -185,6 +215,7 @@ export function normalizeProjectData(parsed, fallbackName = "") {
       paragraphIndex: Number.isInteger(segment.paragraphIndex)
         ? segment.paragraphIndex
         : (parsed.meta.splitMode === "paragraph" ? index : 0),
+      blockquote: Boolean(segment.blockquote),
     })),
     glossary: parsed.glossary
       .filter((item) => item && item.targetTerm && item.translation)
@@ -210,6 +241,7 @@ export function serializeProject(project) {
         source: segment.source,
         translation: segment.translation,
         paragraphIndex: segment.paragraphIndex,
+        blockquote: segment.blockquote,
       })),
       glossary: project.glossary,
     },
@@ -243,9 +275,12 @@ export function getExportSegments(project) {
       const translated = (segment.translation || "").trim();
       const source = (segment.source || "").trim();
       const text = translated || source;
+      const translationHasBlockquote = translated ? /^\s*>\s?/.test(translated) : false;
+      const exportBlockquote = translated ? translationHasBlockquote : Boolean(segment.blockquote);
       return {
         ...segment,
         exportText: text,
+        exportBlockquote,
       };
     })
     .filter((segment) => segment.exportText);
@@ -268,21 +303,28 @@ export function getExportParagraphs(project) {
   let currentParagraphIndex = null;
   let currentTexts = [];
   let currentJoiner = project.meta.splitMode === "sentence" ? " " : "\n";
+  let currentIsBlockquote = false;
 
   segments.forEach((segment, fallbackIndex) => {
     const paragraphIndex = Number.isInteger(segment.paragraphIndex)
       ? segment.paragraphIndex
       : (project.meta.splitMode === "sentence" ? 0 : fallbackIndex);
 
+    const segmentBlockquote = Boolean(segment.exportBlockquote);
+
     if (currentParagraphIndex === null) {
       currentParagraphIndex = paragraphIndex;
+      currentIsBlockquote = segmentBlockquote;
       currentJoiner = resolveExportJoiner(project, segment);
     }
 
-    if (paragraphIndex !== currentParagraphIndex) {
-      if (currentTexts.length) grouped.push(currentTexts.join(currentJoiner).trim());
+    if (paragraphIndex !== currentParagraphIndex || segmentBlockquote !== currentIsBlockquote) {
+      if (currentTexts.length) {
+        grouped.push({ text: currentTexts.join(currentJoiner).trim(), blockquote: currentIsBlockquote });
+      }
       currentParagraphIndex = paragraphIndex;
       currentTexts = [];
+      currentIsBlockquote = segmentBlockquote;
       currentJoiner = resolveExportJoiner(project, segment);
     }
 
@@ -290,9 +332,16 @@ export function getExportParagraphs(project) {
       currentJoiner = "\n";
     }
 
-    currentTexts.push(segment.exportText);
+    const cleaned = currentIsBlockquote
+      ? String(segment.exportText || "").replace(/^\s*>\s?/, "")
+      : String(segment.exportText || "").replace(/^\s*>\s?/, "");
+    currentTexts.push(cleaned);
   });
 
-  if (currentTexts.length) grouped.push(currentTexts.join(currentJoiner).trim());
-  return grouped.filter(Boolean);
+  if (currentTexts.length) {
+    grouped.push({ text: currentTexts.join(currentJoiner).trim(), blockquote: currentIsBlockquote });
+  }
+  return grouped
+    .filter((item) => item.text)
+    .map((item) => (item.blockquote ? `> ${item.text}` : item.text));
 }

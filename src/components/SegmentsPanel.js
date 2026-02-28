@@ -44,8 +44,13 @@ function SegmentItem({
     ? segment.source
     : ((segment.translation || "").trim() ? segment.translation : segment.source);
 
+  const translationText = (segment.translation || "").trim();
+  const translationBlockquote = translationText ? /^\s*>\s?/.test(translationText) : null;
+  const displayBlockquote = translationBlockquote !== null ? translationBlockquote : Boolean(segment.blockquote);
+  const blockquoteClass = displayBlockquote ? "segment-blockquote" : "";
+
   return html`
-    <li className=${`segment-item ${isActive ? "active" : ""}`} data-segment-id=${segment.id} title=${`${t("status_prefix")}: ${translationStatus}`} onClick=${() => onSelect(segment.id)}>
+    <li className=${`segment-item ${blockquoteClass} ${isActive ? "active" : ""}`} data-segment-id=${segment.id} title=${`${t("status_prefix")}: ${translationStatus}`} onClick=${() => onSelect(segment.id)}>
       <div className="segment-content">
         ${isActive
           ? html`

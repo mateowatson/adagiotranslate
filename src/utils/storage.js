@@ -17,6 +17,7 @@ export function persistProject(project, activeSegmentId) {
         source: segment.source,
         translation: segment.translation,
         paragraphIndex: segment.paragraphIndex,
+        blockquote: segment.blockquote,
       })),
       glossary: project.glossary.map((entry) => ({
         targetTerm: entry.targetTerm,

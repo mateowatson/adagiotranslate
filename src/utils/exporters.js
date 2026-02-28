@@ -57,6 +57,16 @@ export function markdownToDocxParagraphs(markdown, Paragraph, TextRun, HeadingLe
       return;
     }
 
+    const blockquoteMatch = line.match(/^\s*>\s*(.+)$/);
+    if (blockquoteMatch) {
+      paragraphs.push(new Paragraph({
+        children: markdownInlineToTextRuns(blockquoteMatch[1], TextRun),
+        indent: { left: 720 },
+        spacing: { before: 120, after: 120 },
+      }));
+      return;
+    }
+
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
       const level = headingMatch[1].length;

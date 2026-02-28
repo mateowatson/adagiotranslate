@@ -352,6 +352,16 @@ button:hover {
   white-space: pre-wrap;
 }
 
+.segment-item.segment-blockquote .segment-source {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.6rem;
+  color: var(--muted);
+}
+
+.segment-item.segment-blockquote .segment-text {
+  font-style: italic;
+}
+
  
 
 .workspace.editor-right .segment-item.active .segment-content {
